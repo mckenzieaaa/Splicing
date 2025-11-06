@@ -12,12 +12,31 @@
       .msg{background:#fff;padding:18px;border:4px solid #000;color:#000}
       .hint{position:fixed;left:12px;top:12px;color:#ccc;font-family:monospace}
       .mute{position:fixed;right:12px;top:12px;background:rgba(0,0,0,0.5);color:#fff;padding:6px 10px;border-radius:6px;cursor:pointer;font-family:monospace}
+      /* mobile controls */
+      .controls{position:fixed;left:12px;bottom:12px;display:flex;gap:8px}
+      .btn{width:64px;height:64px;border-radius:8px;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-family:monospace;user-select:none}
+      .startOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:20}
+      .startBox{background:#fff;color:#000;padding:20px;border-radius:8px;border:4px solid #000;text-align:center}
     </style>
   </head>
   <body>
     <canvas id="game"></canvas>
-    <div class="hint">控制：← → 或 A D — 到达远处白色旗帜收集并完成关卡</div>
-  <div id="muteBtn" class="mute">Mute</div>
+    <div class="hint">控制：← → / A D，跳跃：↑ / W / 空格 — 收集全部白色胶囊</div>
+    <div id="muteBtn" class="mute">Mute</div>
+    <div class="controls" id="touchControls" style="display:none">
+      <div id="leftBtn" class="btn">◀</div>
+      <div id="rightBtn" class="btn">▶</div>
+      <div id="jumpBtn" class="btn">▲</div>
+    </div>
+
+    <div id="startOverlay" class="startOverlay">
+      <div class="startBox">
+        <h2>Level 1 — 黑白像素</h2>
+        <p>按 Enter 开始游戏</p>
+        <p>移动：← → / A D，跳跃：↑ / W / 空格</p>
+        <button id="startBtn">开始</button>
+      </div>
+    </div>
 
     <div id="completeOverlay" class="overlay" style="display:none">
       <div class="msg">
@@ -60,19 +79,32 @@
         // camera
         let camX = 0;
 
-        // controls
-        const keys = {};
-        window.addEventListener('keydown', e=>{ keys[e.key] = true; });
-        window.addEventListener('keyup', e=>{ keys[e.key] = false; });
+  // controls
+  const keys = {};
+  window.addEventListener('keydown', e=>{ keys[e.key] = true; });
+  window.addEventListener('keyup', e=>{ keys[e.key] = false; });
+  // jump input should be edge-triggered; track key state for jump
+  const jumpKeys = ['ArrowUp','w','W',' '];
 
-        // world features: parallax layers and a distant white flag as item
+  // world features: parallax layers and collectibles as items
         const layers = [
           {color:'#dcdcdc', speed:0.1, y:200, h:200},
           {color:'#bfbfbf', speed:0.3, y:360, h:180},
           {color:'#9f9f9f', speed:0.6, y:520, h:220}
         ];
 
-        const flag = { x: 3000, y: groundY - 48, w: 10, h: 48, collected:false };
+        // platforms and collectibles
+        const platforms = [
+          {x:0, y:groundY, w:6000, h:6}
+        ];
+
+        const collectibles = [
+          {x: 900, y: groundY - 24, w:8, h:8, collected:false},
+          {x: 1600, y: groundY - 40, w:8, h:8, collected:false},
+          {x: 2600, y: groundY - 24, w:8, h:8, collected:false}
+        ];
+
+        const COLLECT_TARGET = collectibles.length;
 
   // walking sprite (16x16) monochrome frames — 6 subtle frames for smoother movement
         const SPRITES = [
@@ -90,7 +122,10 @@
           ]
         ];
 
-        let animTick = 0;
+  let animTick = 0;
+  // physics
+  const GRAV = 1200; // px/s^2
+  const JUMP_V = -520; // px/s
         // audio
         let audioCtx = null;
         let muted = false;
@@ -114,6 +149,10 @@
         function playPickup(){ playTone(880, 0.18, 'sine', 0.12); }
 
         function update(dt){
+          // track previous grounded state for proper jump edge detection
+          const wasOnGround = !!player.onGround;
+          // reset grounded state; will be set during collision check
+          player.onGround = false;
           // input
           const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
           const right = keys['ArrowRight'] || keys['d'] || keys['D'];
@@ -122,9 +161,17 @@
           else if(right){ player.vx = 140; player.dir = 1; player.anim = 1; }
           else { player.vx = 0; player.anim = 0; }
 
+          // (jump will be applied after collision resolves to use correct grounded state)
+
           // apply velocity
           const oldX = player.x;
+          // horizontal
           player.x += player.vx * (dt/1000);
+          // vertical physics
+          player.vy = player.vy || 0;
+          player.vy += GRAV * (dt/1000);
+          player.y += player.vy * (dt/1000);
+
           // footsteps sound when moving
           if(player.anim && Math.abs(player.x - oldX) > 12){ playStep(); }
 
@@ -135,12 +182,34 @@
           const targetCam = Math.max(0, player.x - VW*0.35);
           camX += (targetCam - camX) * Math.min(1, dt/200);
 
-          // check flag collection
-          if(!flag.collected && player.x + player.w/2 >= flag.x){
-            flag.collected = true;
-            playPickup();
-            onComplete();
-          }
+          // platform collision (simple ground)
+          platforms.forEach(p=>{
+            if(player.x + player.w > p.x && player.x < p.x + p.w){
+              if(player.y + player.h > p.y && player.y + player.h < p.y + p.h + 64){
+                // snap to platform
+                player.y = p.y - player.h;
+                player.vy = 0;
+                player.onGround = true;
+              }
+            }
+          });
+
+          // handle jump edge (press while grounded) after collision resolves
+          const jumpPressed = jumpKeys.some(k => keys[k]);
+          if(jumpPressed && wasOnGround){ player.vy = JUMP_V; player.onGround = false; playStep(); }
+
+          // collectibles
+          collectibles.forEach(c=>{
+            if(!c.collected){
+              if(player.x + player.w > c.x && player.x < c.x + c.w && player.y + player.h > c.y && player.y < c.y + c.h){
+                c.collected = true; playPickup();
+              }
+            }
+          });
+
+          // check win
+          const collectedCount = collectibles.filter(c=>c.collected).length;
+          if(collectedCount >= COLLECT_TARGET && !window.LEVEL1_DONE){ window.LEVEL1_DONE = true; onComplete(); }
         }
 
         function draw(){
@@ -161,14 +230,14 @@
           ctx.fillStyle = '#d0d0d0';
           ctx.fillRect(0, groundY, VW, VH-groundY);
 
-          // draw flag (item)
-          if(!flag.collected){
-            const fx = flag.x - camX;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(fx, flag.y, 6, flag.h);
-            // pennant
-            ctx.fillRect(fx+6, flag.y+8, 14, 6);
-          }
+          // draw collectibles
+          collectibles.forEach(c=>{
+            if(!c.collected){
+              const cx = Math.round(c.x - camX);
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(cx, c.y, c.w, c.h);
+            }
+          });
 
           // draw player at center-ish
           const px = Math.round(player.x - camX);
@@ -179,7 +248,7 @@
 
           // draw sprite pixel-by-pixel (monochrome) with 4-frame animation
           const frameIndex = Math.floor(animTick) % SPRITES.length;
-          const spriteData = SPRITES[frameIndex][0];
+          const spriteData = SPRITES[frameIndex];
           for(let y=0;y<16;y++){
             const row = spriteData[y];
             for(let x=0;x<16;x++){
@@ -191,19 +260,22 @@
             }
           }
 
-          // HUD: small label
-          ctx.fillStyle = '#000'; ctx.font = '14px monospace'; ctx.fillText('远处的旗帜会掉落 key', 12, 26);
+          // HUD: small label & collectibles
+          const collectedCount = collectibles.filter(c=>c.collected).length;
+          ctx.fillStyle = '#000'; ctx.font = '14px monospace'; ctx.fillText('Collected: ' + collectedCount + ' / ' + COLLECT_TARGET, 12, 26);
           // if reveal in progress draw reveal overlay elements
           drawReveal();
         }
 
         let last = performance.now();
+        let running = false;
         function loop(now){
           const dt = now - last; last = now;
           animTick += (player.anim ? dt/140 : dt/800); // faster when walking
           update(dt);
           draw();
-          requestAnimationFrame(loop);
+          if(running) requestAnimationFrame(loop);
+          else last = performance.now();
         }
 
         // particle + reveal animation state
@@ -272,10 +344,40 @@
           document.getElementById('completeOverlay').style.display = 'none';
         });
 
-        // allow click/tap to move right (mobile friendly)
+        // start overlay handling
+        const startOverlay = document.getElementById('startOverlay');
+        const startBtn = document.getElementById('startBtn');
+        function startGame(){
+          startOverlay.style.display = 'none';
+          running = true; last = performance.now(); requestAnimationFrame(loop);
+          // show touch controls if touch present
+          if('ontouchstart' in window) document.getElementById('touchControls').style.display = 'flex';
+        }
+        startBtn.addEventListener('click', startGame);
+        window.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' && !running) startGame(); });
+
+        // touch control wiring
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        const jumpBtn = document.getElementById('jumpBtn');
+        if(leftBtn){
+          leftBtn.addEventListener('pointerdown', ()=>{ keys['ArrowLeft'] = true; });
+          leftBtn.addEventListener('pointerup', ()=>{ keys['ArrowLeft'] = false; });
+          leftBtn.addEventListener('pointercancel', ()=>{ keys['ArrowLeft'] = false; });
+        }
+        if(rightBtn){
+          rightBtn.addEventListener('pointerdown', ()=>{ keys['ArrowRight'] = true; });
+          rightBtn.addEventListener('pointerup', ()=>{ keys['ArrowRight'] = false; });
+          rightBtn.addEventListener('pointercancel', ()=>{ keys['ArrowRight'] = false; });
+        }
+        if(jumpBtn){
+          jumpBtn.addEventListener('pointerdown', ()=>{ if(player.onGround){ player.vy = JUMP_V; player.onGround = false; playStep(); } });
+        }
+
+        // allow click/tap on canvas to step forward briefly (mobile friendly)
         canvas.addEventListener('pointerdown', (e)=>{ keys['ArrowRight'] = true; setTimeout(()=>{ keys['ArrowRight'] = false; }, 200); });
 
-        requestAnimationFrame(loop);
+        // don't start until user presses start
       })();
     </script>
   </body>
