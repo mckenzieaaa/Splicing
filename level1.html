@@ -81,8 +81,9 @@
         const tile = 16; // 16px logical pixel
         const groundY = VH - 6 * tile; // ground baseline
 
-        // player
-        const player = { x: 120, y: groundY - 16, w:16, h:16, vx:0, onGround:true, dir:1, anim:0 };
+        // player (logical size stays 16x16; drawScale increases visual size)
+          const player = { x: 120, y: groundY - 16, w:16, h:16, vx:0, onGround:true, dir:1, anim:0 };
+          const SPRITE_DRAW_SCALE = 2; // change to 2 or 3 to make the character visually larger
 
         // camera
         let camX = 0;
@@ -250,11 +251,13 @@
           // draw player at center-ish
           const px = Math.round(player.x - camX);
           const py = Math.round(player.y);
-          // draw small shadow
+          // draw larger shadow (scaled with sprite)
+          const shadowW = 28 * SPRITE_DRAW_SCALE;
+          const shadowH = 6 * SPRITE_DRAW_SCALE;
           ctx.fillStyle = 'rgba(0,0,0,0.08)';
-          ctx.fillRect(px-6, groundY+2, 28, 6);
+          ctx.fillRect(px-6*SPRITE_DRAW_SCALE, groundY+2, shadowW, shadowH);
 
-          // draw sprite pixel-by-pixel (monochrome) with 4-frame animation
+          // draw sprite pixel-by-pixel (monochrome) with 4-frame animation, scaled up
           const frameIndex = Math.floor(animTick) % SPRITES.length;
           const spriteData = SPRITES[frameIndex];
           for(let y=0;y<16;y++){
@@ -262,8 +265,9 @@
             for(let x=0;x<16;x++){
               if(row[x] === '1'){
                 ctx.fillStyle = '#0a0a0a';
-                if(player.dir === 1) ctx.fillRect(px + x, py + y, 1, 1);
-                else ctx.fillRect(px + (15-x), py + y, 1, 1);
+                const drawX = (player.dir === 1) ? (px + x*SPRITE_DRAW_SCALE) : (px + (15-x)*SPRITE_DRAW_SCALE);
+                const drawY = py + y*SPRITE_DRAW_SCALE;
+                ctx.fillRect(drawX, drawY, SPRITE_DRAW_SCALE, SPRITE_DRAW_SCALE);
               }
             }
           }
