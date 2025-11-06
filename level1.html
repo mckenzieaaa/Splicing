@@ -216,6 +216,18 @@
             }
           });
 
+          // scenery proximity triggers
+          if(typeof scenery !== 'undefined'){
+            scenery.forEach(s=>{
+              if(!sceneryTriggered.has(s.x)){
+                if(Math.abs(player.x - s.x) < 96){
+                  sceneryTriggered.add(s.x);
+                  showNarrative(s.text || '', 2600);
+                }
+              }
+            });
+          }
+
           // check win
           const collectedCount = collectibles.filter(c=>c.collected).length;
           if(collectedCount >= COLLECT_TARGET && !window.LEVEL1_DONE){ window.LEVEL1_DONE = true; onComplete(); }
@@ -247,6 +259,33 @@
               ctx.fillRect(cx, c.y, c.w, c.h);
             }
           });
+
+          // draw scenery (simple pixel-ish shapes)
+          if(typeof scenery !== 'undefined'){
+            scenery.forEach(s=>{
+              const sx = Math.round(s.x - camX);
+              if(s.type === 'tree'){
+                // trunk
+                ctx.fillStyle = '#8b6b3a'; ctx.fillRect(sx+6, s.y+8, 4, 12);
+                // foliage blocks
+                ctx.fillStyle = '#cfcfcf'; ctx.fillRect(sx, s.y, 20, 16);
+                ctx.fillStyle = '#bfbfbf'; ctx.fillRect(sx+2, s.y-8, 16, 12);
+              }else if(s.type === 'bench'){
+                ctx.fillStyle = '#b3b3b3'; ctx.fillRect(sx, s.y+6, 22, 6);
+                ctx.fillStyle = '#8b8b8b'; ctx.fillRect(sx, s.y+2, 4, 6); ctx.fillRect(sx+18, s.y+2, 4, 6);
+              }else if(s.type === 'building'){
+                ctx.fillStyle = '#e6e6e6'; ctx.fillRect(sx, s.y, 60, 64);
+                ctx.fillStyle = '#cfcfcf'; ctx.fillRect(sx+8, s.y+10, 12, 12);
+                ctx.fillRect(sx+36, s.y+10, 12, 12);
+              }else if(s.type === 'sign'){
+                ctx.fillStyle = '#bfbfbf'; ctx.fillRect(sx, s.y, 6, 20);
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(sx+6, s.y+4, 36, 8);
+              }else if(s.type === 'lamp'){
+                ctx.fillStyle = '#8b8b8b'; ctx.fillRect(sx+8, s.y, 6, 40);
+                ctx.fillStyle = '#fff6d6'; ctx.fillRect(sx+6, s.y-8, 10, 8);
+              }
+            });
+          }
 
           // draw player at center-ish
           const px = Math.round(player.x - camX);
@@ -429,14 +468,26 @@
 
         // ------------------ scripted events ------------------
         const events = [
-          {type:'walk', speed:60, duration:6000},
-          {type:'pause', duration:2200, text:'远方，路在继续。'},
-          {type:'walk', speed:80, duration:7000},
-          {type:'pause', duration:2600, text:'我记得那天的风是温柔的。'},
+          {type:'walk', speed:60, duration:5200},
+          {type:'pause', duration:2600, text:'路沿着河，水面安静像一面旧镜子。'},
+          {type:'walk', speed:70, duration:6800},
+          {type:'pause', duration:3000, text:'树影绕过路肩，叶子在远处低语。'},
+          {type:'walk', speed:80, duration:9000},
+          {type:'pause', duration:3200, text:'天色偏灰，风里夹着午后的温度。'},
           {type:'walk', speed:90, duration:10000},
-          {type:'pause', duration:3000, text:'收集那些小小的胶囊吧。'}
+          {type:'pause', duration:3600, text:'走得慢些，留一点时间给路上的小事。'}
         ];
         let evIndex = 0; let evTimer = null; let currentEvent = null;
+
+        // scenic decorations and proximity triggers
+        const scenery = [
+          {x: 380, y: groundY - 48, type:'tree', text: '一棵老槐，树皮有些裂痕。'},
+          {x: 980, y: groundY - 32, type:'bench', text: '长椅上刻着模糊的名字。'},
+          {x: 1500, y: groundY - 88, type:'building', text: '远处有一栋低矮的屋子，窗里没有人。'},
+          {x: 2300, y: groundY - 40, type:'sign', text: '路牌指向没有名字的村庄。'},
+          {x: 3050, y: groundY - 56, type:'lamp', text: '旧路灯还在，夜里会亮。'}
+        ];
+        const sceneryTriggered = new Set();
 
         function showNarrative(txt, dur){
           const el = document.getElementById('narrative'); const content = document.getElementById('narrativeText');
