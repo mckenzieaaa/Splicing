@@ -192,10 +192,16 @@
           const isRunning = shift && (left || right);
           const speed = isRunning ? 240 : 140; // Run speed vs walk speed
 
-          // Update player movement state
-          if(left || right){ 
-            player.vx = left ? -speed : speed;
-            player.dir = left ? -1 : 1;
+          // Update player movement state (right takes priority if both pressed)
+          if(right && !left){ 
+            player.vx = speed;
+            player.dir = 1;
+            player.anim = 1;
+            player.running = isRunning;
+          }
+          else if(left){ 
+            player.vx = -speed;
+            player.dir = -1;
             player.anim = 1;
             player.running = isRunning;
           }
