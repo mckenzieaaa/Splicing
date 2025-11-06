@@ -100,8 +100,16 @@
 
   // controls
   const keys = {};
-  window.addEventListener('keydown', e=>{ keys[e.key] = true; });
-  window.addEventListener('keyup', e=>{ keys[e.key] = false; });
+  window.addEventListener('keydown', e=>{ 
+    keys[e.key] = true; 
+    // Handle Shift key variations
+    if(e.key === 'Shift' || e.shiftKey) keys['Shift'] = true;
+  });
+  window.addEventListener('keyup', e=>{ 
+    keys[e.key] = false; 
+    // Handle Shift key variations - ensure it's released
+    if(e.key === 'Shift' || !e.shiftKey) keys['Shift'] = false;
+  });
   // jump input should be edge-triggered; track key state for jump
   const jumpKeys = ['ArrowUp','w','W',' '];
 
@@ -186,11 +194,11 @@
           // input
           const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
           const right = keys['ArrowRight'] || keys['d'] || keys['D'];
-          const shift = keys['Shift'];
+          const shift = keys['Shift'] || false; // Ensure it's explicitly false when not pressed
 
           // Update player movement state (right takes priority if both pressed)
           if(right && !left){ 
-            const isRunning = shift;
+            const isRunning = !!shift; // Convert to boolean explicitly
             const speed = isRunning ? 240 : 140;
             player.vx = speed;
             player.dir = 1;
@@ -198,7 +206,7 @@
             player.running = isRunning;
           }
           else if(left){ 
-            const isRunning = shift;
+            const isRunning = !!shift; // Convert to boolean explicitly
             const speed = isRunning ? 240 : 140;
             player.vx = -speed;
             player.dir = -1;
