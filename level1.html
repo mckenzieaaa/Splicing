@@ -419,24 +419,35 @@
             ctx.fillRect(0, groundY, VW, VH-groundY);
           }
 
-          // draw collectibles (visual enlarged, collision unchanged)
+          // draw collectibles (use smile.png image)
           collectibles.forEach(c=>{
             if(!c.collected){
               const cx = Math.round(c.x - camX);
-              const cy = Math.round(c.y + c.h*0.5);
-              const r = Math.round(8 * VISUAL_SCALE);
-              // soft glow
-              ctx.save();
-              ctx.shadowBlur = 12 * (VISUAL_SCALE/2);
-              ctx.shadowColor = 'rgba(255,255,255,0.9)';
-              ctx.fillStyle = '#ffffff';
-              ctx.beginPath();
-              ctx.arc(cx + c.w/2, cy, r, 0, Math.PI*2);
-              ctx.fill();
-              ctx.restore();
-              // small inner square to keep pixel feel
-              ctx.fillStyle = '#f4f4f4';
-              ctx.fillRect(Math.round(cx + c.w/2 - r*0.35), Math.round(cy - r*0.35), Math.round(r*0.7), Math.round(r*0.7));
+              const cy = Math.round(c.y);
+              
+              if(smileImage){
+                // Draw smile.png image
+                const size = 48; // Size of the smile icon (adjust as needed)
+                ctx.save();
+                // Add a subtle glow effect
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'rgba(255,255,255,0.6)';
+                ctx.drawImage(smileImage, cx - size/2, cy - size/2, size, size);
+                ctx.restore();
+              } else {
+                // Fallback: draw white circle if image not loaded
+                const r = Math.round(8 * VISUAL_SCALE);
+                ctx.save();
+                ctx.shadowBlur = 12 * (VISUAL_SCALE/2);
+                ctx.shadowColor = 'rgba(255,255,255,0.9)';
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(cx + c.w/2, cy + c.h*0.5, r, 0, Math.PI*2);
+                ctx.fill();
+                ctx.restore();
+                ctx.fillStyle = '#f4f4f4';
+                ctx.fillRect(Math.round(cx + c.w/2 - r*0.35), Math.round(cy + c.h*0.5 - r*0.35), Math.round(r*0.7), Math.round(r*0.7));
+              }
             }
           });
 
@@ -919,6 +930,10 @@
 
         // Load player run spritesheet
         loadImage('./assets/player/Run.png', (img)=>{ if(img) playerRunSheet = img; });
+
+        // Load collectible image (smile.png)
+        let smileImage = null;
+        loadImage('./smile.png', (img)=>{ if(img) smileImage = img; });
 
         // Load scenery assets (foreground decorations)
         const sceneryAssets = {
