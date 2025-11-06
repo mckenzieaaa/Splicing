@@ -135,14 +135,6 @@
     white-space:nowrap;
     text-align:center;
   }
-  .narrative .card .word{
-    display:inline-block;
-    margin:0 8px;
-    transition:transform 1200ms cubic-bezier(.22,.9,.35,1), opacity 1200ms ease;
-    will-change:transform, opacity;
-  }
-  /* per-word random float handled by JS */
-  @keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-8px)}100%{transform:translateY(0)}}
       .fadeScreen{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 600ms ease;z-index:30}
     </style>
   </head>
@@ -1203,22 +1195,12 @@
           content.innerHTML = '';
           const wrap = document.createElement('div'); wrap.className = 'card';
           
-          // Split text into words
+          // Split text into words - simpler now, just for spacing
           const words = txt.split(/\s+/);
           words.forEach((word, idx) => {
             if(word.trim().length === 0) return;
             
-            const wordSpan = document.createElement('span');
-            wordSpan.className = 'word';
-            wordSpan.textContent = word;
-            wordSpan.style.opacity = '0.75';
-            
-            // Store random offset for this word
-            wordSpan.dataset.offset = String(Math.random() * 2 * Math.PI);
-            wordSpan.dataset.amplitude = String(3 + Math.random() * 5); // Random 3-8px amplitude (very subtle float)
-            wordSpan.dataset.speed = String(0.8 + Math.random() * 0.6); // Random speed 0.8-1.4
-            
-            wrap.appendChild(wordSpan);
+            wrap.appendChild(document.createTextNode(word));
             
             // Add space between words (except last one)
             if(idx < words.length - 1) {
@@ -1230,14 +1212,9 @@
           el.style.display = 'block'; 
           setTimeout(()=>{ el.classList.add('show'); }, 20);
           
-          // Collect word spans for animation
-          narrativeSpans = Array.from(wrap.querySelectorAll('.word'));
-          narrativeStart = performance.now();
-          
           if(dur) {
             narrativeTimer = setTimeout(()=>{ 
               el.classList.remove('show'); 
-              narrativeSpans = []; 
               narrativeTimer = null;
               setTimeout(()=>{ el.style.display = 'none'; }, 420); 
             }, dur);
@@ -1277,25 +1254,8 @@
         let narrativeStart = 0;
         let narrativeTimer = null; // Track narrative timeout to prevent duplicates
         function updateNarrativeAnim(now){
-          if(!narrativeSpans || narrativeSpans.length===0) return;
-          const t = (now - narrativeStart) / 1000;
-          
-          for(let i=0;i<narrativeSpans.length;i++){
-            const word = narrativeSpans[i];
-            
-            // Get random parameters stored in dataset
-            const offset = parseFloat(word.dataset.offset);
-            const amplitude = parseFloat(word.dataset.amplitude);
-            const speed = parseFloat(word.dataset.speed);
-            
-            // Each word floats independently with its own random parameters
-            const y = Math.sin(t * speed + offset) * amplitude;
-            word.style.transform = `translateY(${ y }px)`;
-            
-            // Subtle opacity variation for mysterious effect
-            const o = 0.65 + 0.15 * Math.sin(t * 0.8 + offset);
-            word.style.opacity = String(o);
-          }
+          // No animation needed - just fade in/out handled by CSS transition
+          return;
         }
 
         document.getElementById('overlayClose').addEventListener('click', ()=>{
