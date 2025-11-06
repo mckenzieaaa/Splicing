@@ -17,14 +17,31 @@
       .btn{width:64px;height:64px;border-radius:8px;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-family:monospace;user-select:none}
       .startOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:20}
       .startBox{background:#fff;color:#000;padding:20px;border-radius:8px;border:4px solid #000;text-align:center}
-      /* narrative card */
-  .narrative{position:fixed;left:50%;top:8%;transform:translateX(-50%);z-index:25;pointer-events:none;opacity:0;transition:opacity 400ms ease}
+      /* narrative card - mysterious floating text */
+  .narrative{position:fixed;left:50%;top:8%;transform:translateX(-50%);z-index:25;pointer-events:none;opacity:0;transition:opacity 800ms ease}
   .narrative.show{opacity:1}
-  /* floating translucent text - no box */
-  .narrative .card{background:transparent;color:rgba(28,28,28,0.96);padding:6px 12px;border-radius:6px;border:0;display:inline-block;font-family:monospace;font-size:20px;text-shadow:0 2px 6px rgba(255,255,255,0.03)}
-  .narrative .card span{display:inline-block;transition:transform 900ms cubic-bezier(.22,.9,.35,1),opacity 900ms ease}
-  .narrative.show .card{ /* keep a very slow subtle float for the whole block */ transform-origin:center; animation:floaty 10s ease-in-out infinite}
-  /* per-character random float handled by JS */
+  /* floating translucent text - larger, blurred, mysterious */
+  .narrative .card{
+    background:transparent;
+    color:rgba(40,40,40,0.7);
+    padding:12px 20px;
+    border-radius:8px;
+    border:0;
+    display:inline-block;
+    font-family:'Courier New', 'Courier', monospace;
+    font-size:36px;
+    font-weight:300;
+    letter-spacing:3px;
+    text-shadow:0 0 20px rgba(0,0,0,0.4), 0 0 40px rgba(0,0,0,0.2);
+    filter:blur(0.8px);
+  }
+  .narrative .card .word{
+    display:inline-block;
+    margin:0 8px;
+    transition:transform 1200ms cubic-bezier(.22,.9,.35,1), opacity 1200ms ease;
+    will-change:transform, opacity;
+  }
+  /* per-word random float handled by JS */
   @keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-8px)}100%{transform:translateY(0)}}
       .fadeScreen{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 600ms ease;z-index:30}
     </style>
@@ -744,13 +761,13 @@
         // ------------------ scripted events ------------------
         const events = [
           {type:'walk', speed:60, duration:5200},
-          {type:'pause', duration:2600, text:'路沿着河，水面安静像一面旧镜子。'},
+          {type:'pause', duration:2600, text:'The path follows the river quiet as an old mirror'},
           {type:'walk', speed:70, duration:6800},
-          {type:'pause', duration:3000, text:'树影绕过路肩，叶子在远处低语。'},
+          {type:'pause', duration:3000, text:'Tree shadows drift past whispers in the distance'},
           {type:'walk', speed:80, duration:9000},
-          {type:'pause', duration:3200, text:'天色偏灰，风里夹着午后的温度。'},
+          {type:'pause', duration:3200, text:'Gray sky holds the warmth of afternoon'},
           {type:'walk', speed:90, duration:10000},
-          {type:'pause', duration:3600, text:'走得慢些，留一点时间给路上的小事。'}
+          {type:'pause', duration:3600, text:'Walk slowly leave time for small things along the way'}
         ];
         let evIndex = 0; let evTimer = null; let currentEvent = null;
 
@@ -892,22 +909,47 @@
         function showNarrative(txt, dur){
           const el = document.getElementById('narrative'); const content = document.getElementById('narrativeText');
           if(!txt){ el.classList.remove('show'); narrativeSpans = []; setTimeout(()=>{ el.style.display = 'none'; }, 420); return; }
-          // split into spans so each character can float independently
+          
+          // Split into words (not characters) for independent floating
           content.innerHTML = '';
           const wrap = document.createElement('div'); wrap.className = 'card';
-          for(let i=0;i<txt.length;i++){
-            const ch = txt[i];
-            const sp = document.createElement('span'); sp.textContent = ch;
-            sp.style.display = 'inline-block'; sp.style.transform = 'translateY(0px)'; sp.style.willChange = 'transform,opacity'; sp.style.opacity = '0.98';
-            sp.style.margin = '0 1px';
-            wrap.appendChild(sp);
-          }
+          
+          // Split text into words
+          const words = txt.split(/\s+/);
+          words.forEach((word, idx) => {
+            if(word.trim().length === 0) return;
+            
+            const wordSpan = document.createElement('span');
+            wordSpan.className = 'word';
+            wordSpan.textContent = word;
+            wordSpan.style.opacity = '0.75';
+            
+            // Store random offset for this word
+            wordSpan.dataset.offset = String(Math.random() * 2 * Math.PI);
+            wordSpan.dataset.amplitude = String(15 + Math.random() * 25); // Random 15-40px amplitude
+            wordSpan.dataset.speed = String(0.8 + Math.random() * 0.6); // Random speed 0.8-1.4
+            
+            wrap.appendChild(wordSpan);
+            
+            // Add space between words (except last one)
+            if(idx < words.length - 1) {
+              wrap.appendChild(document.createTextNode(' '));
+            }
+          });
+          
           content.appendChild(wrap);
-          el.style.display = 'block'; setTimeout(()=>{ el.classList.add('show'); }, 20);
-          // collect spans for animation
-          narrativeSpans = Array.from(wrap.querySelectorAll('span'));
+          el.style.display = 'block'; 
+          setTimeout(()=>{ el.classList.add('show'); }, 20);
+          
+          // Collect word spans for animation
+          narrativeSpans = Array.from(wrap.querySelectorAll('.word'));
           narrativeStart = performance.now();
-          if(dur) setTimeout(()=>{ el.classList.remove('show'); narrativeSpans = []; setTimeout(()=>{ el.style.display = 'none'; }, 420); }, dur);
+          
+          if(dur) setTimeout(()=>{ 
+            el.classList.remove('show'); 
+            narrativeSpans = []; 
+            setTimeout(()=>{ el.style.display = 'none'; }, 420); 
+          }, dur);
         }
 
         function startEventSequence(){ evIndex = 0; runNextEvent(); }
@@ -944,14 +986,22 @@
         function updateNarrativeAnim(now){
           if(!narrativeSpans || narrativeSpans.length===0) return;
           const t = (now - narrativeStart) / 1000;
+          
           for(let i=0;i<narrativeSpans.length;i++){
-            const sp = narrativeSpans[i];
-            const phase = i * 0.35;
-            const y = Math.sin(t*1.8 + phase) * (6 + Math.sin(t*0.6 + phase)*2);
-            sp.style.transform = `translateY(${ -y }px)`;
-            // slight opacity shift for depth
-            const o = 0.88 + 0.08 * Math.sin(t*1.4 + phase);
-            sp.style.opacity = String(o);
+            const word = narrativeSpans[i];
+            
+            // Get random parameters stored in dataset
+            const offset = parseFloat(word.dataset.offset);
+            const amplitude = parseFloat(word.dataset.amplitude);
+            const speed = parseFloat(word.dataset.speed);
+            
+            // Each word floats independently with its own random parameters
+            const y = Math.sin(t * speed + offset) * amplitude;
+            word.style.transform = `translateY(${ y }px)`;
+            
+            // Subtle opacity variation for mysterious effect
+            const o = 0.65 + 0.15 * Math.sin(t * 0.8 + offset);
+            word.style.opacity = String(o);
           }
         }
 
