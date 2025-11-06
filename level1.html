@@ -420,13 +420,18 @@
           const py = Math.round(player.y);
           
           // Draw collision box for debugging (small rectangle showing actual hitbox)
+          // HIDDEN - Uncomment to debug collision
+          /*
           ctx.save();
           ctx.globalAlpha = 0.3;
           ctx.fillStyle = '#ff0000';
           ctx.fillRect(px, py, player.w * PHYS_SCALE, player.h * PHYS_SCALE);
           ctx.restore();
+          */
           
           // subtle soft shadow under player collision box
+          // HIDDEN - Uncomment to show shadow
+          /*
           ctx.save();
           ctx.globalAlpha = 0.12;
           ctx.fillStyle = '#000';
@@ -436,6 +441,7 @@
           ctx.ellipse(px + (player.w*PHYS_SCALE)/2, py + player.h * PHYS_SCALE + 2, shW, shH, 0, 0, Math.PI*2);
           ctx.fill();
           ctx.restore();
+          */
 
           // draw player sprite (use loaded spritesheet if available, else fallback to hardcoded)
           const offsetX = -50; // Move sprite left 50px (30 + 20)
