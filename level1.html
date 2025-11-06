@@ -101,14 +101,10 @@
   // controls
   const keys = {};
   window.addEventListener('keydown', e=>{ 
-    keys[e.key] = true; 
-    // Handle Shift key variations
-    if(e.key === 'Shift' || e.shiftKey) keys['Shift'] = true;
+    keys[e.key] = true;
   });
   window.addEventListener('keyup', e=>{ 
-    keys[e.key] = false; 
-    // Handle Shift key variations - ensure it's released
-    if(e.key === 'Shift' || !e.shiftKey) keys['Shift'] = false;
+    keys[e.key] = false;
   });
   
   // Clear all keys when window loses focus (prevents stuck keys)
@@ -205,26 +201,27 @@
           // input
           const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
           const right = keys['ArrowRight'] || keys['d'] || keys['D'];
-          const shift = keys['Shift'] || false; // Ensure it's explicitly false when not pressed
+          const shift = !!keys['Shift']; // Explicitly convert to boolean
 
-          // Update player movement state (right takes priority if both pressed)
-          if(right && !left){ 
-            const isRunning = !!shift; // Convert to boolean explicitly
+          // Determine movement direction first
+          let moveDir = 0; // 0 = not moving, -1 = left, 1 = right
+          if(right && !left) {
+            moveDir = 1;
+          } else if(left && !right) {
+            moveDir = -1;
+          }
+          
+          // Update player state based on movement
+          if(moveDir !== 0) {
+            // Moving
+            const isRunning = shift; // Only run if Shift is held
             const speed = isRunning ? 240 : 140;
-            player.vx = speed;
-            player.dir = 1;
+            player.vx = moveDir * speed;
+            player.dir = moveDir;
             player.anim = 1;
             player.running = isRunning;
-          }
-          else if(left){ 
-            const isRunning = !!shift; // Convert to boolean explicitly
-            const speed = isRunning ? 240 : 140;
-            player.vx = -speed;
-            player.dir = -1;
-            player.anim = 1;
-            player.running = isRunning;
-          }
-          else { 
+          } else { 
+            // Not moving - stop completely
             player.vx = 0; 
             player.anim = 0;
             player.running = false;
