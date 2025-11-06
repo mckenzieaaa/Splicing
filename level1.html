@@ -110,6 +110,13 @@
     // Handle Shift key variations - ensure it's released
     if(e.key === 'Shift' || !e.shiftKey) keys['Shift'] = false;
   });
+  
+  // Clear all keys when window loses focus (prevents stuck keys)
+  window.addEventListener('blur', ()=> {
+    Object.keys(keys).forEach(k => keys[k] = false);
+    lastJumpPressed = false;
+  });
+  
   // jump input should be edge-triggered; track key state for jump
   const jumpKeys = ['ArrowUp','w','W',' '];
 
@@ -164,6 +171,10 @@
   // physics
   const GRAV = 1200; // px/s^2
   const JUMP_V = -520; // px/s
+  
+  // Track previous jump key state for edge detection
+  let lastJumpPressed = false;
+  
         // audio
         let audioCtx = null;
         let muted = false;
@@ -257,7 +268,14 @@
 
           // handle jump edge (press while grounded) after collision resolves
           const jumpPressed = jumpKeys.some(k => keys[k]);
-          if(jumpPressed && wasOnGround){ player.vy = JUMP_V; player.onGround = false; playStep(); }
+          // Edge-triggered jump: only jump on the rising edge (when key just pressed)
+          const jumpJustPressed = jumpPressed && !lastJumpPressed;
+          if(jumpJustPressed && wasOnGround){ 
+            player.vy = JUMP_V; 
+            player.onGround = false; 
+            playStep(); 
+          }
+          lastJumpPressed = jumpPressed; // Store for next frame
 
           // collectibles (use scaled collision box for detection)
           collectibles.forEach(c=>{
