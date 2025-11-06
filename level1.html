@@ -384,6 +384,8 @@
           ctx.restore();
 
           // draw player sprite (use loaded spritesheet if available, else fallback to hardcoded)
+          const offsetY = -240; // Move sprite up 240px from physics position (applies to all rendering)
+          
           if(playerWalkSheet && player.anim){
             // Extract frame from walk spritesheet (assume 10 frames horizontally)
             const totalFrames = 10;
@@ -392,7 +394,6 @@
             const sh = playerWalkSheet.height;
             const dw = sw * 3; // Keep player at 3x scale
             const dh = sh * 3;
-            const offsetY = -190; // Move sprite up 190px from physics position
             ctx.save();
             if(player.dir === -1){
               ctx.scale(-1, 1);
@@ -409,7 +410,6 @@
             const sh = playerIdleSheet.height;
             const dw = sw * 3; // Keep player at 3x scale
             const dh = sh * 3;
-            const offsetY = -190; // Move sprite up 190px from physics position
             ctx.save();
             if(player.dir === -1){
               ctx.scale(-1, 1);
@@ -428,7 +428,7 @@
                 if(row[x] === '1'){
                   ctx.fillStyle = '#0a0a0a';
                   const drawX = (player.dir === 1) ? (px + x*SPRITE_DRAW_SCALE) : (px + (15-x)*SPRITE_DRAW_SCALE);
-                  const drawY = py + y*SPRITE_DRAW_SCALE;
+                  const drawY = py + offsetY + y*SPRITE_DRAW_SCALE; // Apply offsetY to fallback sprite too
                   ctx.fillRect(drawX, drawY, SPRITE_DRAW_SCALE, SPRITE_DRAW_SCALE);
                 }
               }
