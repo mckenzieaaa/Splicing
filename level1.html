@@ -392,12 +392,13 @@
             const sh = playerWalkSheet.height;
             const dw = sw * 3; // Keep player at 3x scale
             const dh = sh * 3;
+            const offsetY = -40; // Move sprite up 40px from physics position
             ctx.save();
             if(player.dir === -1){
               ctx.scale(-1, 1);
-              ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, -px - dw, py, dw, dh);
+              ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, -px - dw, py + offsetY, dw, dh);
             }else{
-              ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, px, py, dw, dh);
+              ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, px, py + offsetY, dw, dh);
             }
             ctx.restore();
           }else if(playerIdleSheet && !player.anim){
@@ -408,12 +409,13 @@
             const sh = playerIdleSheet.height;
             const dw = sw * 3; // Keep player at 3x scale
             const dh = sh * 3;
+            const offsetY = -40; // Move sprite up 40px from physics position
             ctx.save();
             if(player.dir === -1){
               ctx.scale(-1, 1);
-              ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, -px - dw, py, dw, dh);
+              ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, -px - dw, py + offsetY, dw, dh);
             }else{
-              ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, px, py, dw, dh);
+              ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, px, py + offsetY, dw, dh);
             }
             ctx.restore();
           }else{
