@@ -250,28 +250,33 @@
           // clear
           ctx.fillStyle = '#f4f4f4'; ctx.fillRect(0,0,VW,VH);
 
-          // draw loaded mountain backgrounds (parallax)
-          bgMountains.forEach(mt=>{
-            if(!mt.img) return;
-            const px = - (camX * mt.speed) % (mt.img.width + 200);
-            for(let x = px - mt.img.width; x < VW; x += mt.img.width){
-              ctx.drawImage(mt.img, x, mt.y);
+          // Sort and draw background layers by z-order (1=back, 5=front)
+          const sortedLayers = bgLayers.slice().sort((a,b) => a.z - b.z);
+          
+          sortedLayers.forEach(layer => {
+            if(!layer.img) return;
+            
+            if(layer.repeat){
+              // Tile/repeat the layer horizontally with parallax
+              const offsetX = -(camX * layer.speed);
+              const imgW = layer.img.width;
+              const imgH = layer.img.height;
+              
+              // Calculate how many tiles we need to cover the screen
+              const startX = Math.floor(offsetX / imgW) * imgW;
+              
+              for(let x = startX - imgW; x < VW + imgW; x += imgW){
+                ctx.drawImage(layer.img, x, layer.y, imgW, imgH);
+              }
+            }else{
+              // Single image, positioned with parallax
+              const px = -(camX * layer.speed);
+              ctx.drawImage(layer.img, px, layer.y);
             }
           });
 
-          // draw loaded cloud backgrounds (parallax)
-          bgClouds.forEach(cl=>{
-            if(!cl.img) return;
-            const px = - (camX * cl.speed) % (cl.img.width * cl.scale + 200);
-            const w = cl.img.width * cl.scale;
-            const h = cl.img.height * cl.scale;
-            for(let x = px - w; x < VW; x += w + 100){
-              ctx.drawImage(cl.img, x, cl.y, w, h);
-            }
-          });
-
-          // draw old procedural layers if no bg loaded (fallback)
-          if(bgMountains.length === 0 && bgClouds.length === 0){
+          // Draw old procedural ground if no background layers loaded (fallback)
+          if(bgLayers.length === 0){
             layers.forEach(layer=>{
               const px = - (camX * layer.speed) % (VW + 200);
               ctx.fillStyle = layer.color;
@@ -279,11 +284,10 @@
                 ctx.fillRect(x, layer.y, 360, layer.h);
               }
             });
+            // ground fallback
+            ctx.fillStyle = '#d0d0d0';
+            ctx.fillRect(0, groundY, VW, VH-groundY);
           }
-
-          // ground
-          ctx.fillStyle = '#d0d0d0';
-          ctx.fillRect(0, groundY, VW, VH-groundY);
 
           // draw collectibles (visual enlarged, collision unchanged)
           collectibles.forEach(c=>{
@@ -418,19 +422,20 @@
             }
           }
 
-          // draw a small foreground pass from the lowest parallax layer so part of that layer sits
+          // draw a small foreground pass from the ground layer (layer 5) so part of it sits
           // in front of the player (creates the half-behind / half-in-front effect)
-          if(bgMountains.length > 0){
+          const groundLayer = bgLayers.find(l => l.z === 5);
+          if(groundLayer && groundLayer.img){
             ctx.save();
-            ctx.globalAlpha = 0.12;
-            const fg = bgMountains[bgMountains.length - 1];
-            if(fg.img){
-              const px = - (camX * fg.speed) % (fg.img.width + 200);
-              for(let x = px - fg.img.width; x < VW; x += fg.img.width){
-                // draw bottom half of mountain as foreground overlay
-                const clipH = Math.round(fg.img.height * 0.4);
-                ctx.drawImage(fg.img, 0, fg.img.height - clipH, fg.img.width, clipH, x, fg.y + fg.img.height - clipH, fg.img.width, clipH);
-              }
+            ctx.globalAlpha = 0.3;
+            const offsetX = -(camX * groundLayer.speed);
+            const imgW = groundLayer.img.width;
+            const startX = Math.floor(offsetX / imgW) * imgW;
+            // Draw only bottom portion as foreground overlay
+            const clipH = Math.round(groundLayer.img.height * 0.5);
+            for(let x = startX - imgW; x < VW + imgW; x += imgW){
+              ctx.drawImage(groundLayer.img, 0, groundLayer.img.height - clipH, imgW, clipH, 
+                           x, groundLayer.y + groundLayer.img.height - clipH, imgW, clipH);
             }
             ctx.restore();
           }else if(layers.length > 0){
@@ -775,10 +780,8 @@
         const playerFrameW = 48; // typical frame width (adjust if needed)
         const playerFrameH = 48; // typical frame height
 
-        // Background layers loaded from assets
-        const bgMountains = [];
-        const bgClouds = [];
-        const bgNatureObjects = [];
+        // Background layers loaded from user assets (5 layers: 1=sky, 2=clouds, 3=far mountains, 4=near mountains, 5=ground)
+        const bgLayers = [];
 
         // Load player walk spritesheet
         loadAndConvertImage('./assets/player/Walk.png', (img)=>{
@@ -792,19 +795,31 @@
         // Load player idle spritesheet
         loadAndConvertImage('./assets/player/Idle.png', (img)=>{ if(img) playerIdleSheet = img; });
 
-        // Load mountains (choose one set, e.g., m1)
-        loadAndConvertImage('./assets/backgrounds/m1/2.png', (img)=>{ if(img) bgMountains.push({img, speed:0.1, y:180}); });
-        loadAndConvertImage('./assets/backgrounds/m1/3.png', (img)=>{ if(img) bgMountains.push({img, speed:0.15, y:220}); });
-        loadAndConvertImage('./assets/backgrounds/m1/4.png', (img)=>{ if(img) bgMountains.push({img, speed:0.2, y:280}); });
+        // Load 5 background layers with appropriate parallax speeds
+        // Layer 1: Sky/base color (slowest parallax)
+        loadAndConvertImage('./assets/backgrounds/background/1.png', (img)=>{ 
+          if(img) bgLayers.push({img, speed:0.05, y:0, z:1, repeat:true}); 
+        });
 
-        // Load clouds (choose one set, e.g., Clouds 1)
-        loadAndConvertImage('./assets/backgrounds/Clouds 1/1.png', (img)=>{ if(img) bgClouds.push({img, speed:0.05, y:60, scale:0.6}); });
-        loadAndConvertImage('./assets/backgrounds/Clouds 1/2.png', (img)=>{ if(img) bgClouds.push({img, speed:0.08, y:120, scale:0.7}); });
+        // Layer 2: Clouds (slow)
+        loadAndConvertImage('./assets/backgrounds/background/2.png', (img)=>{ 
+          if(img) bgLayers.push({img, speed:0.1, y:0, z:2, repeat:true}); 
+        });
 
-        // Load nature objects (trees, rocks, etc. from nature_1)
-        loadAndConvertImage('./assets/backgrounds/nature_1/2.png', (img)=>{ if(img) SPRITE_IMAGES['tree'] = img; });
-        loadAndConvertImage('./assets/backgrounds/nature_1/5.png', (img)=>{ if(img) SPRITE_IMAGES['rock'] = img; });
-        loadAndConvertImage('./assets/backgrounds/nature_1/7.png', (img)=>{ if(img) SPRITE_IMAGES['bush'] = img; });
+        // Layer 3: Far mountains (medium)
+        loadAndConvertImage('./assets/backgrounds/background/3.png', (img)=>{ 
+          if(img) bgLayers.push({img, speed:0.2, y:VH - img.height - 200, z:3, repeat:true}); 
+        });
+
+        // Layer 4: Near mountains (faster, foreground-ish)
+        loadAndConvertImage('./assets/backgrounds/background/4.png', (img)=>{ 
+          if(img) bgLayers.push({img, speed:0.4, y:VH - img.height - 100, z:4, repeat:true}); 
+        });
+
+        // Layer 5: Ground (fastest, player walks on this)
+        loadAndConvertImage('./assets/backgrounds/background/5.png', (img)=>{ 
+          if(img) bgLayers.push({img, speed:0.6, y:groundY - 20, z:5, repeat:true}); 
+        });
 
         function showNarrative(txt, dur){
           const el = document.getElementById('narrative'); const content = document.getElementById('narrativeText');
