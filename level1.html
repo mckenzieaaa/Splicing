@@ -261,28 +261,25 @@
           // clear
           ctx.fillStyle = '#f4f4f4'; ctx.fillRect(0,0,VW,VH);
 
-          // Draw the composite background as a long scrolling scene (NOT tiled/repeated)
+          // Draw the composite background as a FIXED backdrop (no parallax scrolling)
           if(compositeBackground){
             const bgW = compositeBackground.width;
             const bgH = compositeBackground.height;
             
-            // SCALE UP the background to fill the screen completely
-            const bgScale = 4; // Scale background up 4x to fill the screen
+            // Scale background to fill screen height perfectly
+            const bgScale = VH / bgH; // Scale to exactly fit screen height
             const scaledW = bgW * bgScale;
-            const scaledH = bgH * bgScale;
+            const scaledH = VH; // Fill screen height exactly
             
-            const parallaxSpeed = 0.5; // Parallax speed (0.5 = background scrolls at half player speed)
-            const offsetX = -(camX * parallaxSpeed);
+            // Center the background horizontally, FIXED (no scrolling)
+            const bgX = (VW - scaledW) / 2;
+            const bgY = 0; // Anchor to top of screen
             
-            // Anchor background BOTTOM to screen BOTTOM (fill screen from bottom up)
-            const bgY = VH - scaledH;
-            
-            // Draw the background ONCE as a long scene (no repeat/tile), SCALED UP
-            ctx.drawImage(compositeBackground, offsetX, bgY, scaledW, scaledH);
+            // Draw the background FIXED (no parallax, no camera movement)
+            ctx.drawImage(compositeBackground, bgX, bgY, scaledW, scaledH);
             
             // Update the actual ground level based on where player should walk
             // The ground layer is at approximately 85% from the top of the background image
-            // After scaling, calculate where that ground appears on screen
             const groundRatioFromTop = 0.85; // ground is 85% down from top of background
             const visualGroundY = bgY + (scaledH * groundRatioFromTop);
             window.VISUAL_GROUND_Y = visualGroundY;
@@ -321,10 +318,30 @@
             }
           });
 
-          // draw scenery (prefer sprite images anchored to ground; fallback to richer procedural drawing)
+          // draw scenery (use loaded assets from scenery folder, fallback to SVG sprites, then procedural)
           if(typeof scenery !== 'undefined'){
             scenery.forEach(s=>{
               const sx = Math.round(s.x - camX);
+              
+              // First priority: check for loaded scenery assets
+              let assetImg = null;
+              if(s.type === 'house' && sceneryAssets.house) assetImg = sceneryAssets.house;
+              else if(s.type === 'cow_tree' && sceneryAssets.cow_tree) assetImg = sceneryAssets.cow_tree;
+              else if(s.type === 'item6' && sceneryAssets.item6) assetImg = sceneryAssets.item6;
+              else if(s.type === 'item7' && sceneryAssets.item7) assetImg = sceneryAssets.item7;
+              
+              if(assetImg){
+                // Draw loaded scenery asset
+                const scale = s.scale || 1.5; // Default scale for scenery items
+                const drawW = assetImg.width * scale;
+                const drawH = assetImg.height * scale;
+                const drawX = sx - drawW/2;
+                const drawY = (typeof s.y === 'number') ? s.y : (window.VISUAL_GROUND_Y || groundY) - drawH;
+                ctx.drawImage(assetImg, drawX, drawY, drawW, drawH);
+                return;
+              }
+              
+              // Second priority: SVG sprite images
               const img = SPRITE_IMAGES[s.type];
               if(img){
                 const iw = img.width; const ih = img.height;
@@ -338,7 +355,8 @@
                 ctx.drawImage(img, drawX, drawY, drawW, drawH);
                 return;
               }
-              // fallback: richer procedural drawing anchored to s.y if present
+              
+              // Fallback: richer procedural drawing anchored to s.y if present
               if(s.type === 'tree'){
                 const h = 48; const trunkH = 20; const foliageH = h - trunkH;
                 const topY = (typeof s.y === 'number') ? s.y : (groundY - h);
@@ -653,11 +671,19 @@
 
         // scenic decorations and proximity triggers
         const scenery = [
-          {x: 760, y: groundY - 72, type:'tree', text: '一棵老槐，树皮有些裂痕。'},
-          {x: 1960, y: groundY - 48, type:'bench', text: '长椅上刻着模糊的名字。'},
-          {x: 3000, y: groundY - 200, type:'building', text: '远处有一栋低矮的屋子，窗里没有人。'},
-          {x: 4600, y: groundY - 64, type:'sign', text: '路牌指向没有名字的村庄。'},
-          {x: 6100, y: groundY - 88, type:'lamp', text: '旧路灯还在，夜里会亮。'}
+          {x: 600, type:'item6', scale:1.8, text: '远处的一些装饰物'},
+          {x: 900, type:'cow_tree', scale:2.0, text: '牛在树下休息'},
+          {x: 1400, type:'house', scale:1.5, text: '一座小房子'},
+          {x: 2000, type:'item7', scale:1.6, text: '路边的景物'},
+          {x: 2800, type:'cow_tree', scale:1.8, text: '又见到了牛和树'},
+          {x: 3600, type:'house', scale:1.7, text: '另一栋房子'},
+          {x: 4400, type:'item6', scale:2.0, text: '更多装饰'},
+          // Original SVG-based scenery items (as fallback/additional variety)
+          {x: 760, type:'tree', text: '一棵老槐，树皮有些裂痕。'},
+          {x: 1960, type:'bench', text: '长椅上刻着模糊的名字。'},
+          {x: 3000, type:'building', text: '远处有一栋低矮的屋子，窗里没有人。'},
+          {x: 4600, type:'sign', text: '路牌指向没有名字的村庄。'},
+          {x: 6100, type:'lamp', text: '旧路灯还在，夜里会亮。'}
         ];
         const sceneryTriggered = new Set();
         // inline SVG sprites (grayscale) for richer scenery without external assets
@@ -801,6 +827,19 @@
 
         // Load player idle spritesheet
         loadAndConvertImage('./assets/player/Idle.png', (img)=>{ if(img) playerIdleSheet = img; });
+
+        // Load scenery assets (foreground decorations)
+        const sceneryAssets = {
+          house: null,
+          cow_tree: null,
+          item6: null,
+          item7: null
+        };
+
+        loadAndConvertImage('./assets/scenery/house.png', (img)=>{ if(img) sceneryAssets.house = img; });
+        loadAndConvertImage('./assets/scenery/cow and tree.png', (img)=>{ if(img) sceneryAssets.cow_tree = img; });
+        loadAndConvertImage('./assets/scenery/6.png', (img)=>{ if(img) sceneryAssets.item6 = img; });
+        loadAndConvertImage('./assets/scenery/7.png', (img)=>{ if(img) sceneryAssets.item7 = img; });
 
         // Load 5 background layers and composite them into one image
         // These layers stack on top of each other to form the complete background (like pre.png)
