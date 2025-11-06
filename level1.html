@@ -188,18 +188,18 @@
           const right = keys['ArrowRight'] || keys['d'] || keys['D'];
           const shift = keys['Shift'];
 
-          // Check if running (Shift + direction)
-          const isRunning = shift && (left || right);
-          const speed = isRunning ? 240 : 140; // Run speed vs walk speed
-
           // Update player movement state (right takes priority if both pressed)
           if(right && !left){ 
+            const isRunning = shift;
+            const speed = isRunning ? 240 : 140;
             player.vx = speed;
             player.dir = 1;
             player.anim = 1;
             player.running = isRunning;
           }
           else if(left){ 
+            const isRunning = shift;
+            const speed = isRunning ? 240 : 140;
             player.vx = -speed;
             player.dir = -1;
             player.anim = 1;
