@@ -84,15 +84,15 @@
 
         // world
         const tile = 16; // 16px logical pixel
-        const groundY = VH - 6 * tile; // ground baseline
+        let groundY = VH - 6 * tile; // ground baseline (will be updated when background loads)
 
         // visual / physics scale (increase to make everything larger on screen)
           const SPRITE_DRAW_SCALE = 4; // visual scale for sprite rendering (was 2)
           const PHYS_SCALE = SPRITE_DRAW_SCALE; // scale collision box to match visual size
           const VISUAL_SCALE = 4; // additional visual scale for non-physics elements (collectibles, decorations)
           // player (logical size defined here; y will be anchored to ground using scaled collision height)
-          const player = { x: 120, y: 0, w:16, h:16, vx:0, onGround:true, dir:1, anim:0 };
-          // ensure player visually sits on the ground according to PHYS_SCALE
+          const player = { x: 120, y: 0, w:16, h:16, vx:0, onGround:true, dir:1, anim:0, vy:0 };
+          // ensure player visually sits on the ground according to PHYS_SCALE (will update after bg loads)
           player.y = groundY - player.h * PHYS_SCALE;
 
         // camera
@@ -114,14 +114,25 @@
 
         // platforms and collectibles
         const platforms = [
-          {x:0, y:groundY, w:14000, h:6}
+          {x:0, y:0, w:20000, h:6} // Will be repositioned when background loads; width matches long scene
         ];
 
         const collectibles = [
-          {x: 1600, y: groundY - 24, w:8, h:8, collected:false},
-          {x: 3200, y: groundY - 40, w:8, h:8, collected:false},
-          {x: 5200, y: groundY - 24, w:8, h:8, collected:false}
+          {x: 1600, y: 0, w:8, h:8, collected:false},
+          {x: 3200, y: 0, w:8, h:8, collected:false},
+          {x: 5200, y: 0, w:8, h:8, collected:false}
         ];
+
+        // Update platform and collectible Y positions when background loads
+        function updateGroundPositions(){
+          const visualGround = window.VISUAL_GROUND_Y || groundY;
+          platforms.forEach(p => { p.y = visualGround; });
+          collectibles.forEach(c => { 
+            c.y = visualGround - 40; // place collectibles above ground
+          });
+          // Update player initial position
+          player.y = visualGround - player.h * PHYS_SCALE;
+        }
 
         const COLLECT_TARGET = collectibles.length;
 
@@ -250,22 +261,23 @@
           // clear
           ctx.fillStyle = '#f4f4f4'; ctx.fillRect(0,0,VW,VH);
 
-          // Draw the composite background (all 5 layers merged) with parallax
+          // Draw the composite background as a long scrolling scene (NOT tiled/repeated)
           if(compositeBackground){
             const bgW = compositeBackground.width;
             const bgH = compositeBackground.height;
-            const parallaxSpeed = 0.3; // Single parallax speed for the whole scene
+            const parallaxSpeed = 0.5; // Parallax speed (0.5 = background scrolls at half player speed)
             const offsetX = -(camX * parallaxSpeed);
             
-            // Tile the composite background horizontally
-            const startX = Math.floor(offsetX / bgW) * bgW;
+            // Calculate Y position: anchor background bottom to screen bottom with some padding
+            const bgY = VH - bgH - 50; // 50px padding from bottom
             
-            // Calculate Y position to anchor bottom of background to groundY
-            const bgY = groundY - bgH;
+            // Draw the background ONCE as a long scene (no repeat/tile)
+            ctx.drawImage(compositeBackground, offsetX, bgY, bgW, bgH);
             
-            for(let x = startX - bgW; x < VW + bgW; x += bgW){
-              ctx.drawImage(compositeBackground, x, bgY, bgW, bgH);
-            }
+            // Update the actual ground level based on where player should walk
+            // Player walks on the visual ground in the background (around 80% of bg height)
+            const visualGroundY = bgY + bgH * 0.75; // adjust 0.75 to match where ground appears in your image
+            window.VISUAL_GROUND_Y = visualGroundY;
           }else{
             // Fallback: draw old procedural layers if composite not ready
             layers.forEach(layer=>{
@@ -413,38 +425,26 @@
             }
           }
 
-          // draw a small foreground pass from the composite background bottom portion
-          // to create depth (part of ground in front of player)
+          // Optional: draw a small foreground pass from the composite background bottom portion
+          // Disabled for now to keep scene clean
+          /*
           if(compositeBackground){
             ctx.save();
             ctx.globalAlpha = 0.2;
             const bgW = compositeBackground.width;
             const bgH = compositeBackground.height;
-            const parallaxSpeed = 0.3;
+            const parallaxSpeed = 0.5;
             const offsetX = -(camX * parallaxSpeed);
-            const startX = Math.floor(offsetX / bgW) * bgW;
-            const bgY = groundY - bgH;
+            const bgY = VH - bgH - 50;
             
             // Draw only bottom 30% of composite as foreground overlay
             const clipH = Math.round(bgH * 0.3);
             const clipY = bgH - clipH;
             
-            for(let x = startX - bgW; x < VW + bgW; x += bgW){
-              ctx.drawImage(compositeBackground, 0, clipY, bgW, clipH, x, bgY + clipY, bgW, clipH);
-            }
-            ctx.restore();
-          }else if(layers.length > 0){
-            // fallback to old procedural
-            ctx.save();
-            ctx.globalAlpha = 0.16;
-            const fg = layers[layers.length-1];
-            const pxfg = - (camX * fg.speed) % (VW + 200);
-            ctx.fillStyle = fg.color;
-            for(let x = pxfg - 200; x < VW; x += 400){
-              ctx.fillRect(x, fg.y + Math.round(fg.h*0.5), 360, Math.round(fg.h*0.5));
-            }
+            ctx.drawImage(compositeBackground, 0, clipY, bgW, clipH, offsetX, bgY + clipY, bgW, clipH);
             ctx.restore();
           }
+          */
 
           // HUD: small label & collectibles (subtle)
           const collectedCount = collectibles.filter(c=>c.collected).length;
@@ -836,6 +836,13 @@
           compositeBackground = new Image();
           compositeBackground.onload = () => {
             console.log('Composite background ready:', compositeBackground.width, 'x', compositeBackground.height);
+            // Update groundY based on background height
+            // Assume player walks on the bottom portion of the background
+            // Place ground at 80% height of the background
+            const bgBottomY = VH - 100; // background bottom position
+            window.BG_BOTTOM_Y = bgBottomY;
+            // Trigger ground position update
+            setTimeout(updateGroundPositions, 100);
           };
           compositeBackground.src = tempCanvas.toDataURL();
         }
