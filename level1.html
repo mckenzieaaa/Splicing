@@ -198,37 +198,59 @@
           const wasOnGround = !!player.onGround;
           // reset grounded state; will be set during collision check
           player.onGround = false;
-          // input
+          
+          // ===== MOVEMENT INPUT - Completely Rewritten =====
           const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
           const right = keys['ArrowRight'] || keys['d'] || keys['D'];
-          const shift = !!keys['Shift']; // Explicitly convert to boolean
-
-          // Handle movement - if both keys pressed, prefer right
-          let moveDir = 0; // 0 = not moving, -1 = left, 1 = right
-          if(left && right) {
-            // Both pressed - prefer right
-            moveDir = 1;
-          } else if(right) {
-            moveDir = 1;
-          } else if(left) {
-            moveDir = -1;
-          }
+          const shift = keys['Shift'];
           
-          // Update player state based on movement
-          if(moveDir !== 0) {
-            // Moving
-            const isRunning = shift; // Only run if Shift is held
-            const speed = isRunning ? 240 : 140;
-            player.vx = moveDir * speed;
-            player.dir = moveDir;
+          // Reset movement state
+          player.vx = 0;
+          player.anim = 0;
+          player.running = false;
+          
+          // Apply movement based on keys pressed
+          if(left && !right) {
+            // Moving left only
+            player.dir = -1;
             player.anim = 1;
-            player.running = isRunning;
-          } else { 
-            // Not moving - stop completely
-            player.vx = 0; 
-            player.anim = 0;
-            player.running = false;
+            if(shift) {
+              // Running left
+              player.vx = -240;
+              player.running = true;
+            } else {
+              // Walking left
+              player.vx = -140;
+              player.running = false;
+            }
+          } 
+          else if(right && !left) {
+            // Moving right only
+            player.dir = 1;
+            player.anim = 1;
+            if(shift) {
+              // Running right
+              player.vx = 240;
+              player.running = true;
+            } else {
+              // Walking right
+              player.vx = 140;
+              player.running = false;
+            }
           }
+          else if(left && right) {
+            // Both pressed - move right (right has priority)
+            player.dir = 1;
+            player.anim = 1;
+            if(shift) {
+              player.vx = 240;
+              player.running = true;
+            } else {
+              player.vx = 140;
+              player.running = false;
+            }
+          }
+          // else: neither pressed - stays at 0 (idle)
 
           // (jump will be applied after collision resolves to use correct grounded state)
 
