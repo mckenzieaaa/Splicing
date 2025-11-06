@@ -671,13 +671,13 @@
 
         // scenic decorations and proximity triggers
         const scenery = [
-          {x: 600, type:'item6', scale:1.8, text: '远处的一些装饰物'},
-          {x: 900, type:'cow_tree', scale:2.0, text: '牛在树下休息'},
-          {x: 1400, type:'house', scale:1.5, text: '一座小房子'},
-          {x: 2000, type:'item7', scale:1.6, text: '路边的景物'},
-          {x: 2800, type:'cow_tree', scale:1.8, text: '又见到了牛和树'},
-          {x: 3600, type:'house', scale:1.7, text: '另一栋房子'},
-          {x: 4400, type:'item6', scale:2.0, text: '更多装饰'},
+          {x: 600, type:'item6', scale:0.8, text: '远处的一些装饰物'},
+          {x: 900, type:'cow_tree', scale:1.0, text: '牛在树下休息'},
+          {x: 1400, type:'house', scale:0.9, text: '一座小房子'},
+          {x: 2000, type:'item7', scale:0.7, text: '路边的景物'},
+          {x: 2800, type:'cow_tree', scale:0.85, text: '又见到了牛和树'},
+          {x: 3600, type:'house', scale:1.0, text: '另一栋房子'},
+          {x: 4400, type:'item6', scale:0.9, text: '更多装饰'},
           // Original SVG-based scenery items (as fallback/additional variety)
           {x: 760, type:'tree', text: '一棵老槐，树皮有些裂痕。'},
           {x: 1960, type:'bench', text: '长椅上刻着模糊的名字。'},
@@ -777,8 +777,7 @@
         const playerFrameW = 48; // typical frame width (adjust if needed)
         const playerFrameH = 48; // typical frame height
 
-        // Background composite: load 5 layers and merge them into one complete scene
-        const bgLayerImages = [];
+        // Background - single pre-composed image
         let compositeBackground = null;
 
         // Load player walk spritesheet
@@ -804,63 +803,15 @@
         loadImage('./assets/scenery/6.png', (img)=>{ if(img) sceneryAssets.item6 = img; });
         loadImage('./assets/scenery/7.png', (img)=>{ if(img) sceneryAssets.item7 = img; });
 
-        // Load 5 background layers and composite them into one image
-        // These layers stack on top of each other to form the complete background (like pre.png)
-        let loadedCount = 0;
-        const totalLayers = 5;
-
-        for(let i = 1; i <= totalLayers; i++){
-          loadImage(`./assets/backgrounds/background/${i}.png`, (img) => {
-            if(img){
-              bgLayerImages[i-1] = img;
-            }
-            loadedCount++;
-            // Once all layers loaded, composite them
-            if(loadedCount === totalLayers){
-              compositeBackgroundLayers();
-            }
-          });
-        }
-
-        function compositeBackgroundLayers(){
-          // Find the dimensions (use largest width/height from all layers)
-          let maxW = 0, maxH = 0;
-          bgLayerImages.forEach(img => {
-            if(img){
-              maxW = Math.max(maxW, img.width);
-              maxH = Math.max(maxH, img.height);
-            }
-          });
-
-          if(maxW === 0 || maxH === 0) return;
-
-          // Create a canvas to composite all layers
-          const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = maxW;
-          tempCanvas.height = maxH;
-          const tempCtx = tempCanvas.getContext('2d');
-
-          // Draw layers 1-5 on top of each other
-          bgLayerImages.forEach(img => {
-            if(img){
-              tempCtx.drawImage(img, 0, 0);
-            }
-          });
-
-          // Convert to image
-          compositeBackground = new Image();
-          compositeBackground.onload = () => {
-            console.log('Composite background ready:', compositeBackground.width, 'x', compositeBackground.height);
-            // Update groundY based on background height
-            // Assume player walks on the bottom portion of the background
-            // Place ground at 80% height of the background
-            const bgBottomY = VH - 100; // background bottom position
-            window.BG_BOTTOM_Y = bgBottomY;
-            // Trigger ground position update
+        // Load single pre-composed background (already monochrome)
+        loadImage('./assets/backgrounds/background/pre.png', (img) => {
+          if(img){
+            compositeBackground = img;
+            console.log('Background ready:', compositeBackground.width, 'x', compositeBackground.height);
+            // Update ground positions after background loads
             setTimeout(updateGroundPositions, 100);
-          };
-          compositeBackground.src = tempCanvas.toDataURL();
-        }
+          }
+        });
 
         function showNarrative(txt, dur){
           const el = document.getElementById('narrative'); const content = document.getElementById('narrativeText');
