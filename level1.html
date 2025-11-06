@@ -348,38 +348,79 @@
           if(p >= 1){ document.getElementById('completeOverlay').style.display = 'flex'; revealT = 0; }
         }
 
-        // ------------------ ambient audio ------------------
+        // ------------------ ambient audio (layered) ------------------
         let ambientNodes = null;
         function startAmbient(){
           ensureAudio(); if(!audioCtx) return;
           if(ambientNodes) return;
-          const master = audioCtx.createGain(); master.gain.value = 0.0; master.connect(audioCtx.destination);
-          // slow pad oscillator
-          const pad = audioCtx.createOscillator(); pad.type = 'sine'; pad.frequency.value = 110;
-          const padG = audioCtx.createGain(); padG.gain.value = 0.0001; pad.connect(padG); padG.connect(master);
-          pad.start();
-          // subtle noise via oscillator detuned triangle
-          const n1 = audioCtx.createOscillator(); n1.type = 'triangle'; n1.frequency.value = 0.5; const g1 = audioCtx.createGain(); g1.gain.value = 0.01; n1.connect(g1); g1.connect(master); n1.start();
-          ambientNodes = {master,pad, padG, n1, g1};
-          // ramp in
+          const master = audioCtx.createGain(); master.gain.value = 0.0;
+          // gentle global lowpass for warmth
+          const lp = audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1200; lp.Q.value = 0.7;
+          master.connect(lp); lp.connect(audioCtx.destination);
+
+          // pad layer 1 (slow sine)
+          const pad1 = audioCtx.createOscillator(); pad1.type = 'sine'; pad1.frequency.value = 90;
+          const pad1G = audioCtx.createGain(); pad1G.gain.value = 0.0; pad1.connect(pad1G); pad1G.connect(master);
+
+          // pad layer 2 (detuned saw-like via two slightly detuned triangle oscs)
+          const pad2a = audioCtx.createOscillator(); pad2a.type = 'triangle'; pad2a.frequency.value = 220;
+          const pad2b = audioCtx.createOscillator(); pad2b.type = 'triangle'; pad2b.frequency.value = 222.5;
+          const pad2G = audioCtx.createGain(); pad2G.gain.value = 0.0; pad2a.connect(pad2G); pad2b.connect(pad2G); pad2G.connect(master);
+
+          // subtle bell/ding occasional (started/stopped by random timer)
+          const bell = audioCtx.createOscillator(); bell.type = 'sine'; bell.frequency.value = 880;
+          const bellG = audioCtx.createGain(); bellG.gain.value = 0.0; bell.connect(bellG); bellG.connect(master);
+
+          // ambient slow LFO to modulate pad gains
+          const lfo = audioCtx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.08;
+          const lfoG = audioCtx.createGain(); lfoG.gain.value = 0.08; lfo.connect(lfoG);
+          // connect lfo to pad gains' gain values via setValueAtTime in interval
+
+          pad1.start(); pad2a.start(); pad2b.start(); bell.start(); lfo.start();
+
+          // ramp in gains slowly
           const t = audioCtx.currentTime;
-          master.gain.linearRampToValueAtTime(0.12, t + 2.0);
-          // slight pad frequency drift to create atmosphere
-          let drift = 0;
-          ambientNodes._driftInt = setInterval(()=>{
-            drift = (Math.random()-0.5) * 6;
-            pad.frequency.setTargetAtTime(110 + drift, audioCtx.currentTime, 1.2);
-          }, 2500);
+          pad1G.gain.linearRampToValueAtTime(0.06, t + 3.5);
+          pad2G.gain.linearRampToValueAtTime(0.04, t + 4.0);
+          master.gain.value = 1.0; // used as control routing through lp
+
+          // occasional bell hits
+          ambientNodes = {master, lp, pad1, pad1G, pad2a, pad2b, pad2G, bell, bellG, lfo, lfoG};
+
+          // lfo-based modulation loop (since direct param automation can be limited)
+          ambientNodes._modInt = setInterval(()=>{
+            const now = audioCtx.currentTime;
+            const v = (Math.sin(now * 0.08) + 1) * 0.5; // 0..1
+            // use it to subtly modulate pad gains
+            pad1G.gain.setTargetAtTime(0.03 + v*0.035, now, 1.2);
+            pad2G.gain.setTargetAtTime(0.02 + (1-v)*0.03, now, 1.6);
+            // lowpass gentle sweep
+            lp.frequency.setTargetAtTime(1000 + v*800, now, 2.2);
+            // occasional bell
+            if(Math.random() < 0.08){
+              const g = audioCtx.createGain(); g.gain.value = 0.0001; bell.connect(g); g.connect(audioCtx.destination);
+              const now2 = audioCtx.currentTime;
+              g.gain.setValueAtTime(0.0001, now2);
+              g.gain.exponentialRampToValueAtTime(0.12, now2 + 0.02);
+              g.gain.exponentialRampToValueAtTime(0.0001, now2 + 1.0);
+              setTimeout(()=>{ try{ g.disconnect(); }catch(e){} }, 1500);
+            }
+          }, 400);
         }
 
         function stopAmbient(){
           if(!ambientNodes) return;
-          const t = audioCtx.currentTime;
-          ambientNodes.master.gain.linearRampToValueAtTime(0.0001, t + 1.2);
+          clearInterval(ambientNodes._modInt);
+          const now = audioCtx.currentTime;
+          try{
+            ambientNodes.pad1G.gain.linearRampToValueAtTime(0.0001, now + 1.2);
+            ambientNodes.pad2G.gain.linearRampToValueAtTime(0.0001, now + 1.6);
+            ambientNodes.lp.frequency.linearRampToValueAtTime(400, now + 1.6);
+          }catch(e){}
           setTimeout(()=>{
-            try{ ambientNodes.pad.stop(); ambientNodes.n1.stop(); }catch(e){}
-            clearInterval(ambientNodes._driftInt); ambientNodes = null;
-          }, 1500);
+            try{ ambientNodes.pad1.stop(); ambientNodes.pad2a.stop(); ambientNodes.pad2b.stop(); ambientNodes.bell.stop(); ambientNodes.lfo.stop(); }catch(e){}
+            ambientNodes = null;
+          }, 1600);
         }
 
         // ------------------ scripted events ------------------
@@ -401,19 +442,30 @@
         }
 
         function startEventSequence(){ evIndex = 0; runNextEvent(); }
+        function fadeScreenTo(op, ms, cb){
+          const f = document.getElementById('fadeScreen'); f.style.transition = `opacity ${ms}ms ease`; f.style.opacity = String(op);
+          if(cb) setTimeout(cb, ms + 10);
+        }
+
         function runNextEvent(){
-          if(evIndex >= events.length){ currentEvent = null; controlMode = 'player'; showNarrative(null); return; }
+          if(evIndex >= events.length){ currentEvent = null; controlMode = 'player'; showNarrative(null); fadeScreenTo(0,400); return; }
           const ev = events[evIndex++]; currentEvent = ev;
           if(ev.type === 'walk'){
-            controlMode = 'auto'; player.vx = ev.speed; // immediate
-            // schedule end
+            // ensure screen clear, ambient present
+            fadeScreenTo(0, 500);
+            controlMode = 'auto'; player.vx = ev.speed;
             evTimer = setTimeout(()=>{ runNextEvent(); }, ev.duration);
             showNarrative(null);
           }else if(ev.type === 'pause'){
-            controlMode = 'auto'; // but vx=0
+            // fade down a little, show narrative, then continue
             player.vx = 0;
-            showNarrative(ev.text || '', ev.duration);
-            evTimer = setTimeout(()=>{ runNextEvent(); }, ev.duration);
+            fadeScreenTo(0.32, 600, ()=>{
+              showNarrative(ev.text || '', ev.duration);
+              // keep fade during pause, then remove and continue
+              evTimer = setTimeout(()=>{
+                fadeScreenTo(0, 600, ()=>{ runNextEvent(); });
+              }, ev.duration);
+            });
           }
         }
 
