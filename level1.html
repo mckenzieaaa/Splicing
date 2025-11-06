@@ -265,18 +265,26 @@
           if(compositeBackground){
             const bgW = compositeBackground.width;
             const bgH = compositeBackground.height;
+            
+            // SCALE UP the background to fill the screen properly
+            const bgScale = 2.5; // Scale background up 2.5x to make it bigger
+            const scaledW = bgW * bgScale;
+            const scaledH = bgH * bgScale;
+            
             const parallaxSpeed = 0.5; // Parallax speed (0.5 = background scrolls at half player speed)
             const offsetX = -(camX * parallaxSpeed);
             
             // Anchor background BOTTOM to screen BOTTOM (fill screen from bottom up)
-            const bgY = VH - bgH;
+            const bgY = VH - scaledH;
             
-            // Draw the background ONCE as a long scene (no repeat/tile)
-            ctx.drawImage(compositeBackground, offsetX, bgY, bgW, bgH);
+            // Draw the background ONCE as a long scene (no repeat/tile), SCALED UP
+            ctx.drawImage(compositeBackground, offsetX, bgY, scaledW, scaledH);
             
             // Update the actual ground level based on where player should walk
-            // Player walks on the ground layer visible in the composite
-            const visualGroundY = VH - 200; // 200px from bottom to align with ground in composite
+            // The ground layer is at approximately 85% from the top of the background image
+            // After scaling, calculate where that ground appears on screen
+            const groundRatioFromTop = 0.85; // ground is 85% down from top of background
+            const visualGroundY = bgY + (scaledH * groundRatioFromTop);
             window.VISUAL_GROUND_Y = visualGroundY;
           }else{
             // Fallback: draw old procedural layers if composite not ready
@@ -382,8 +390,8 @@
             const frameIndex = Math.floor(animTick) % totalFrames;
             const sw = playerWalkSheet.width / totalFrames;
             const sh = playerWalkSheet.height;
-            const dw = sw * 3; // Larger scale to make player more visible
-            const dh = sh * 3;
+            const dw = sw * 5; // Larger scale to match the scaled background
+            const dh = sh * 5;
             ctx.save();
             if(player.dir === -1){
               ctx.scale(-1, 1);
@@ -398,8 +406,8 @@
             const frameIndex = Math.floor(animTick / 2) % totalFrames;
             const sw = playerIdleSheet.width / totalFrames;
             const sh = playerIdleSheet.height;
-            const dw = sw * 3; // Larger scale to make player more visible
-            const dh = sh * 3;
+            const dw = sw * 5; // Larger scale to match the scaled background
+            const dh = sh * 5;
             ctx.save();
             if(player.dir === -1){
               ctx.scale(-1, 1);
