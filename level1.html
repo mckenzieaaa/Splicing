@@ -71,13 +71,19 @@
 
         const flag = { x: 3000, y: groundY - 48, w: 10, h: 48, collected:false };
 
-        // simple walking sprite (16x16) monochrome frames — two frames for subtle movement
+        // walking sprite (16x16) monochrome frames — 4 subtle frames for smoother movement
         const SPRITES = [
           [
             '0000000000000000','0000011111000000','0000111111100000','0001111111110000','0011111111111000','0011111111111000','0111111111111100','0111101110111100','0111101110111100','0111111111111100','0011110011111000','0011100001111000','0001100000110000','0000110001100000','0000011110000000','0000000000000000'
           ],
           [
             '0000000000000000','0000011111000000','0000111111100000','0001111111110000','0011111111111000','0011111111111000','0111111111111100','0111011110111100','0111101110111000','0111111111111000','0011110011111000','0011100001111000','0001100000110000','0000110001100000','0000011110000000','0000000000000000'
+          ],
+          [
+            '0000000000000000','0000011111000000','0000111111100000','0001111111110000','0011111111111000','0011111111111000','0111111111111100','0111101110111100','0111110110111100','0111111111111100','0011110011111000','0011100001111000','0001100000110000','0000110001100000','0000011110000000','0000000000000000'
+          ],
+          [
+            '0000000000000000','0000011111000000','0000111111100000','0001111111110000','0011111111111000','0011111111111000','0111111111111100','0111101110111100','0111101110111100','0111111111111100','0011110011111000','0011100001111000','0001100000110000','0000110001100000','0000011110000000','0000000000000000'
           ]
         ];
 
@@ -88,8 +94,8 @@
           const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
           const right = keys['ArrowRight'] || keys['d'] || keys['D'];
 
-          if(left){ player.vx = -120; player.dir = -1; player.anim = 1; }
-          else if(right){ player.vx = 120; player.dir = 1; player.anim = 1; }
+          if(left){ player.vx = -140; player.dir = -1; player.anim = 1; }
+          else if(right){ player.vx = 140; player.dir = 1; player.anim = 1; }
           else { player.vx = 0; player.anim = 0; }
 
           // apply velocity
@@ -98,8 +104,9 @@
           // clamp
           if(player.x < 40) player.x = 40;
 
-          // camera follows player, but clamp min at 0
-          camX = Math.max(0, player.x - VW*0.35);
+          // camera follows player with easing, clamp min at 0
+          const targetCam = Math.max(0, player.x - VW*0.35);
+          camX += (targetCam - camX) * Math.min(1, dt/200);
 
           // check flag collection
           if(!flag.collected && player.x + player.w/2 >= flag.x){
@@ -142,10 +149,9 @@
           ctx.fillStyle = 'rgba(0,0,0,0.08)';
           ctx.fillRect(px-6, groundY+2, 28, 6);
 
-          // draw sprite pixel-by-pixel (monochrome)
-          const frame = SPRITES[animTick % SPRITES.length][0];
-          const frame2 = SPRITES[(animTick+1) % SPRITES.length][0];
-          const spriteData = (player.anim) ? frame2 : frame;
+          // draw sprite pixel-by-pixel (monochrome) with 4-frame animation
+          const frameIndex = Math.floor(animTick) % SPRITES.length;
+          const spriteData = SPRITES[frameIndex][0];
           for(let y=0;y<16;y++){
             const row = spriteData[y];
             for(let x=0;x<16;x++){
@@ -164,24 +170,41 @@
         let last = performance.now();
         function loop(now){
           const dt = now - last; last = now;
-          animTick += dt/120; // slow animation
+          animTick += (player.anim ? dt/140 : dt/800); // faster when walking
           update(dt);
           draw();
           requestAnimationFrame(loop);
         }
 
+        // particle + reveal animation state
+        let revealT = 0;
         function onComplete(){
-          // show overlay and save key
-          document.getElementById('completeOverlay').style.display = 'flex';
-          try{
-            if(window.SpliceMain && window.SpliceMain.reportLevelComplete){
-              window.SpliceMain.reportLevelComplete(1);
-            }
-          }catch(e){/*ignore*/}
+          // animate reveal instead of immediate overlay
+          revealT = 1; // start reveal timeline
+          try{ if(window.SpliceMain && window.SpliceMain.reportLevelComplete){ window.SpliceMain.reportLevelComplete(1); } }catch(e){}
           const s = JSON.parse(localStorage.getItem('splicing_state_v1')||'{}');
           s.droppedKeys = s.droppedKeys || [];
           if(!s.droppedKeys.includes('1030')) s.droppedKeys.push('1030');
           localStorage.setItem('splicing_state_v1', JSON.stringify(s));
+        }
+
+        // draw reveal overlay when revealT>0
+        function drawReveal(){
+          if(revealT <= 0) return;
+          // ease and progress
+          revealT += 0.02;
+          const p = Math.min(1, revealT);
+          // darken background
+          ctx.fillStyle = `rgba(10,10,10,${0.6 * p})`;
+          ctx.fillRect(0,0,VW,VH);
+          // draw large pixel text for key
+          const text = '1030';
+          ctx.fillStyle = '#fff';
+          ctx.font = `${48 + Math.floor(40*p)}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.fillText('Dropped key: ' + text, VW/2, VH/2);
+          // after fully revealed, show overlay button
+          if(p >= 1){ document.getElementById('completeOverlay').style.display = 'flex'; revealT = 0; }
         }
 
         document.getElementById('overlayClose').addEventListener('click', ()=>{
