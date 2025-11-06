@@ -761,48 +761,11 @@
           });
         })();
 
-        // --- user asset loader + runtime monochrome converter ---
-        // Converts any image to black/white/gray 4-level palette
-        function convertImageToMonochrome(img){
-          const w = img.width, h = img.height;
-          const tc = document.createElement('canvas'); tc.width = w; tc.height = h;
-          const tctx = tc.getContext('2d'); tctx.drawImage(img,0,0);
-          try{
-            const id = tctx.getImageData(0,0,w,h);
-            const d = id.data;
-            // simple 4-level palette mapping (black, dark gray, light gray, white)
-            for(let i=0;i<d.length;i+=4){
-              const r = d[i], g = d[i+1], b = d[i+2], a = d[i+3];
-              if(a < 10){ d[i]=d[i+1]=d[i+2]=0; d[i+3]=0; continue; } // preserve transparency
-              const lum = 0.299*r + 0.587*g + 0.114*b; // 0..255
-              let v = 0;
-              if(lum < 60) v = 0;
-              else if(lum < 140) v = 110;
-              else if(lum < 200) v = 190;
-              else v = 255;
-              d[i] = d[i+1] = d[i+2] = v;
-            }
-            tctx.putImageData(id,0,0);
-            return tc;
-          }catch(e){
-            // CORS or read error — return original canvas
-            return tc;
-          }
-        }
-
-        // Load image and convert to monochrome, return as Image
-        function loadAndConvertImage(path, callback){
-          const im = new Image(); im.crossOrigin = 'anonymous';
-          im.onload = ()=>{
-            try{
-              const monoCanvas = convertImageToMonochrome(im);
-              const monoImg = new Image();
-              monoImg.onload = ()=>{ callback(monoImg); };
-              monoImg.src = monoCanvas.toDataURL();
-            }catch(e){
-              callback(im); // fallback to original
-            }
-          };
+        // --- user asset loader (direct load, no conversion - assets are already monochrome) ---
+        // Simple image loader
+        function loadImage(path, callback){
+          const im = new Image();
+          im.onload = ()=>{ callback(im); };
           im.onerror = ()=>{ callback(null); };
           im.src = path;
         }
@@ -819,14 +782,14 @@
         let compositeBackground = null;
 
         // Load player walk spritesheet
-        loadAndConvertImage('./assets/player/Walk.png', (img)=>{
+        loadImage('./assets/player/Walk.png', (img)=>{
           if(img){
             playerWalkSheet = img;
           }
         });
 
         // Load player idle spritesheet
-        loadAndConvertImage('./assets/player/Idle.png', (img)=>{ if(img) playerIdleSheet = img; });
+        loadImage('./assets/player/Idle.png', (img)=>{ if(img) playerIdleSheet = img; });
 
         // Load scenery assets (foreground decorations)
         const sceneryAssets = {
@@ -836,10 +799,10 @@
           item7: null
         };
 
-        loadAndConvertImage('./assets/scenery/house.png', (img)=>{ if(img) sceneryAssets.house = img; });
-        loadAndConvertImage('./assets/scenery/cow and tree.png', (img)=>{ if(img) sceneryAssets.cow_tree = img; });
-        loadAndConvertImage('./assets/scenery/6.png', (img)=>{ if(img) sceneryAssets.item6 = img; });
-        loadAndConvertImage('./assets/scenery/7.png', (img)=>{ if(img) sceneryAssets.item7 = img; });
+        loadImage('./assets/scenery/house.png', (img)=>{ if(img) sceneryAssets.house = img; });
+        loadImage('./assets/scenery/cow and tree.png', (img)=>{ if(img) sceneryAssets.cow_tree = img; });
+        loadImage('./assets/scenery/6.png', (img)=>{ if(img) sceneryAssets.item6 = img; });
+        loadImage('./assets/scenery/7.png', (img)=>{ if(img) sceneryAssets.item7 = img; });
 
         // Load 5 background layers and composite them into one image
         // These layers stack on top of each other to form the complete background (like pre.png)
@@ -847,7 +810,7 @@
         const totalLayers = 5;
 
         for(let i = 1; i <= totalLayers; i++){
-          loadAndConvertImage(`./assets/backgrounds/background/${i}.png`, (img) => {
+          loadImage(`./assets/backgrounds/background/${i}.png`, (img) => {
             if(img){
               bgLayerImages[i-1] = img;
             }
