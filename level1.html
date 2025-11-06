@@ -120,14 +120,14 @@
   .narrative.show{opacity:1}
   /* floating translucent text - smaller, blurred, mysterious */
   .narrative .card{
-    background:transparent;
+    background:rgba(0,0,0,0.15);
     color:rgba(40,40,40,0.7);
     padding:12px 20px;
     border-radius:8px;
-    border:0;
+    border:1px solid rgba(255,255,255,0.2);
     display:block;
     font-family:'PixelFont', 'Courier New', monospace;
-    font-size:28px;
+    font-size:22px;
     font-weight:300;
     letter-spacing:2px;
     text-shadow:0 0 15px rgba(0,0,0,0.4), 0 0 30px rgba(0,0,0,0.2);
@@ -1215,7 +1215,7 @@
             
             // Store random offset for this word
             wordSpan.dataset.offset = String(Math.random() * 2 * Math.PI);
-            wordSpan.dataset.amplitude = String(8 + Math.random() * 12); // Random 8-20px amplitude (shorter float)
+            wordSpan.dataset.amplitude = String(3 + Math.random() * 5); // Random 3-8px amplitude (very subtle float)
             wordSpan.dataset.speed = String(0.8 + Math.random() * 0.6); // Random speed 0.8-1.4
             
             wrap.appendChild(wordSpan);
