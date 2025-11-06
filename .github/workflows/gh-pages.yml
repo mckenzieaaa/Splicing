@@ -4,6 +4,11 @@ on:
   push:
     branches: [ main ]
 
+# Grant minimal permissions required for the deploy action to push to gh-pages and to write Pages
+permissions:
+  contents: read
+  pages: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
