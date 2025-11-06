@@ -266,8 +266,8 @@
             const bgW = compositeBackground.width;
             const bgH = compositeBackground.height;
             
-            // SCALE UP the background to fill the screen properly
-            const bgScale = 2.5; // Scale background up 2.5x to make it bigger
+            // SCALE UP the background to fill the screen completely
+            const bgScale = 4; // Scale background up 4x to fill the screen
             const scaledW = bgW * bgScale;
             const scaledH = bgH * bgScale;
             
@@ -390,8 +390,8 @@
             const frameIndex = Math.floor(animTick) % totalFrames;
             const sw = playerWalkSheet.width / totalFrames;
             const sh = playerWalkSheet.height;
-            const dw = sw * 5; // Larger scale to match the scaled background
-            const dh = sh * 5;
+            const dw = sw * 3; // Keep player at 3x scale
+            const dh = sh * 3;
             ctx.save();
             if(player.dir === -1){
               ctx.scale(-1, 1);
@@ -406,8 +406,8 @@
             const frameIndex = Math.floor(animTick / 2) % totalFrames;
             const sw = playerIdleSheet.width / totalFrames;
             const sh = playerIdleSheet.height;
-            const dw = sw * 5; // Larger scale to match the scaled background
-            const dh = sh * 5;
+            const dw = sw * 3; // Keep player at 3x scale
+            const dh = sh * 3;
             ctx.save();
             if(player.dir === -1){
               ctx.scale(-1, 1);
