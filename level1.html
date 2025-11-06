@@ -268,15 +268,15 @@
             const parallaxSpeed = 0.5; // Parallax speed (0.5 = background scrolls at half player speed)
             const offsetX = -(camX * parallaxSpeed);
             
-            // Calculate Y position: anchor background bottom to screen bottom with some padding
-            const bgY = VH - bgH - 50; // 50px padding from bottom
+            // Anchor background BOTTOM to screen BOTTOM (fill screen from bottom up)
+            const bgY = VH - bgH;
             
             // Draw the background ONCE as a long scene (no repeat/tile)
             ctx.drawImage(compositeBackground, offsetX, bgY, bgW, bgH);
             
             // Update the actual ground level based on where player should walk
-            // Player walks on the visual ground in the background (around 80% of bg height)
-            const visualGroundY = bgY + bgH * 0.75; // adjust 0.75 to match where ground appears in your image
+            // Player walks near the bottom of the screen (around 85% of screen height)
+            const visualGroundY = VH - 150; // 150px from bottom of screen
             window.VISUAL_GROUND_Y = visualGroundY;
           }else{
             // Fallback: draw old procedural layers if composite not ready
