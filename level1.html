@@ -17,6 +17,11 @@
       .btn{width:64px;height:64px;border-radius:8px;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-family:monospace;user-select:none}
       .startOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:20}
       .startBox{background:#fff;color:#000;padding:20px;border-radius:8px;border:4px solid #000;text-align:center}
+      /* narrative card */
+      .narrative{position:fixed;left:50%;top:12%;transform:translateX(-50%);z-index:25;pointer-events:none;opacity:0;transition:opacity 400ms ease}
+      .narrative.show{opacity:1}
+      .narrative .card{background:rgba(255,255,255,0.95);color:#000;padding:14px 18px;border-radius:6px;border:3px solid #000;display:inline-block;font-family:monospace}
+      .fadeScreen{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 600ms ease;z-index:30}
     </style>
   </head>
   <body>
@@ -37,6 +42,9 @@
         <button id="startBtn">开始</button>
       </div>
     </div>
+
+  <div id="narrative" class="narrative" aria-hidden="true"><div class="card" id="narrativeText"></div></div>
+  <div id="fadeScreen" class="fadeScreen"></div>
 
     <div id="completeOverlay" class="overlay" style="display:none">
       <div class="msg">
@@ -340,6 +348,75 @@
           if(p >= 1){ document.getElementById('completeOverlay').style.display = 'flex'; revealT = 0; }
         }
 
+        // ------------------ ambient audio ------------------
+        let ambientNodes = null;
+        function startAmbient(){
+          ensureAudio(); if(!audioCtx) return;
+          if(ambientNodes) return;
+          const master = audioCtx.createGain(); master.gain.value = 0.0; master.connect(audioCtx.destination);
+          // slow pad oscillator
+          const pad = audioCtx.createOscillator(); pad.type = 'sine'; pad.frequency.value = 110;
+          const padG = audioCtx.createGain(); padG.gain.value = 0.0001; pad.connect(padG); padG.connect(master);
+          pad.start();
+          // subtle noise via oscillator detuned triangle
+          const n1 = audioCtx.createOscillator(); n1.type = 'triangle'; n1.frequency.value = 0.5; const g1 = audioCtx.createGain(); g1.gain.value = 0.01; n1.connect(g1); g1.connect(master); n1.start();
+          ambientNodes = {master,pad, padG, n1, g1};
+          // ramp in
+          const t = audioCtx.currentTime;
+          master.gain.linearRampToValueAtTime(0.12, t + 2.0);
+          // slight pad frequency drift to create atmosphere
+          let drift = 0;
+          ambientNodes._driftInt = setInterval(()=>{
+            drift = (Math.random()-0.5) * 6;
+            pad.frequency.setTargetAtTime(110 + drift, audioCtx.currentTime, 1.2);
+          }, 2500);
+        }
+
+        function stopAmbient(){
+          if(!ambientNodes) return;
+          const t = audioCtx.currentTime;
+          ambientNodes.master.gain.linearRampToValueAtTime(0.0001, t + 1.2);
+          setTimeout(()=>{
+            try{ ambientNodes.pad.stop(); ambientNodes.n1.stop(); }catch(e){}
+            clearInterval(ambientNodes._driftInt); ambientNodes = null;
+          }, 1500);
+        }
+
+        // ------------------ scripted events ------------------
+        const events = [
+          {type:'walk', speed:60, duration:6000},
+          {type:'pause', duration:2200, text:'远方，路在继续。'},
+          {type:'walk', speed:80, duration:7000},
+          {type:'pause', duration:2600, text:'我记得那天的风是温柔的。'},
+          {type:'walk', speed:90, duration:10000},
+          {type:'pause', duration:3000, text:'收集那些小小的胶囊吧。'}
+        ];
+        let evIndex = 0; let evTimer = null; let currentEvent = null;
+
+        function showNarrative(txt, dur){
+          const el = document.getElementById('narrative'); const content = document.getElementById('narrativeText');
+          if(!txt){ el.classList.remove('show'); setTimeout(()=>{ el.style.display = 'none'; }, 420); return; }
+          content.textContent = txt; el.style.display = 'block'; setTimeout(()=>{ el.classList.add('show'); }, 20);
+          if(dur) setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>{ el.style.display = 'none'; }, 420); }, dur);
+        }
+
+        function startEventSequence(){ evIndex = 0; runNextEvent(); }
+        function runNextEvent(){
+          if(evIndex >= events.length){ currentEvent = null; controlMode = 'player'; showNarrative(null); return; }
+          const ev = events[evIndex++]; currentEvent = ev;
+          if(ev.type === 'walk'){
+            controlMode = 'auto'; player.vx = ev.speed; // immediate
+            // schedule end
+            evTimer = setTimeout(()=>{ runNextEvent(); }, ev.duration);
+            showNarrative(null);
+          }else if(ev.type === 'pause'){
+            controlMode = 'auto'; // but vx=0
+            player.vx = 0;
+            showNarrative(ev.text || '', ev.duration);
+            evTimer = setTimeout(()=>{ runNextEvent(); }, ev.duration);
+          }
+        }
+
         document.getElementById('overlayClose').addEventListener('click', ()=>{
           document.getElementById('completeOverlay').style.display = 'none';
         });
@@ -347,16 +424,20 @@
         // start overlay handling
         const startOverlay = document.getElementById('startOverlay');
         const startBtn = document.getElementById('startBtn');
+        // Auto-walk + narrative mode (The Longest Road on Earth style)
+        let controlMode = 'auto'; // 'auto' | 'player'
         function startGame(){
           startOverlay.style.display = 'none';
           running = true; last = performance.now(); requestAnimationFrame(loop);
-          // show touch controls if touch present
           if('ontouchstart' in window) document.getElementById('touchControls').style.display = 'flex';
+          // start ambient audio and scripted events
+          startAmbient();
+          startEventSequence();
         }
         startBtn.addEventListener('click', startGame);
         window.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' && !running) startGame(); });
 
-        // touch control wiring
+  // touch control wiring
         const leftBtn = document.getElementById('leftBtn');
         const rightBtn = document.getElementById('rightBtn');
         const jumpBtn = document.getElementById('jumpBtn');
@@ -374,10 +455,10 @@
           jumpBtn.addEventListener('pointerdown', ()=>{ if(player.onGround){ player.vy = JUMP_V; player.onGround = false; playStep(); } });
         }
 
-        // allow click/tap on canvas to step forward briefly (mobile friendly)
-        canvas.addEventListener('pointerdown', (e)=>{ keys['ArrowRight'] = true; setTimeout(()=>{ keys['ArrowRight'] = false; }, 200); });
+  // allow click/tap on canvas to step forward briefly (mobile friendly)
+  canvas.addEventListener('pointerdown', (e)=>{ if(controlMode === 'player'){ keys['ArrowRight'] = true; setTimeout(()=>{ keys['ArrowRight'] = false; }, 200); } else { /* in auto mode, minor nudge */ player.x += 8; } });
 
-        // don't start until user presses start
+  // don't start until user presses start
       })();
     </script>
   </body>
