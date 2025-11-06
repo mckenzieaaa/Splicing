@@ -18,9 +18,12 @@
       .startOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:20}
       .startBox{background:#fff;color:#000;padding:20px;border-radius:8px;border:4px solid #000;text-align:center}
       /* narrative card */
-      .narrative{position:fixed;left:50%;top:12%;transform:translateX(-50%);z-index:25;pointer-events:none;opacity:0;transition:opacity 400ms ease}
-      .narrative.show{opacity:1}
-      .narrative .card{background:rgba(255,255,255,0.95);color:#000;padding:14px 18px;border-radius:6px;border:3px solid #000;display:inline-block;font-family:monospace}
+  .narrative{position:fixed;left:50%;top:8%;transform:translateX(-50%);z-index:25;pointer-events:none;opacity:0;transition:opacity 400ms ease}
+  .narrative.show{opacity:1}
+  /* floating translucent text - no box */
+  .narrative .card{background:transparent;color:rgba(255,255,255,0.92);padding:6px 12px;border-radius:6px;border:0;display:inline-block;font-family:monospace;font-size:20px;text-shadow:0 2px 6px rgba(0,0,0,0.35)}
+  .narrative.show .card{animation:floaty 4s ease-in-out infinite}
+  @keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-8px)}100%{transform:translateY(0)}}
       .fadeScreen{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 600ms ease;z-index:30}
     </style>
   </head>
@@ -85,6 +88,7 @@
           const player = { x: 120, y: groundY - 16, w:16, h:16, vx:0, onGround:true, dir:1, anim:0 };
           const SPRITE_DRAW_SCALE = 2; // visual scale for sprite rendering
           const PHYS_SCALE = SPRITE_DRAW_SCALE; // scale collision box to match visual size (change to 1 to keep original physics)
+          const VISUAL_SCALE = 2; // additional visual scale for non-physics elements (collectibles, decorations)
 
         // camera
         let camX = 0;
@@ -255,12 +259,24 @@
           ctx.fillStyle = '#d0d0d0';
           ctx.fillRect(0, groundY, VW, VH-groundY);
 
-          // draw collectibles
+          // draw collectibles (visual enlarged, collision unchanged)
           collectibles.forEach(c=>{
             if(!c.collected){
               const cx = Math.round(c.x - camX);
+              const cy = Math.round(c.y + c.h*0.5);
+              const r = Math.round(6 * VISUAL_SCALE);
+              // soft glow
+              ctx.save();
+              ctx.shadowBlur = 12 * (VISUAL_SCALE/2);
+              ctx.shadowColor = 'rgba(255,255,255,0.9)';
               ctx.fillStyle = '#ffffff';
-              ctx.fillRect(cx, c.y, c.w, c.h);
+              ctx.beginPath();
+              ctx.arc(cx + c.w/2, cy, r, 0, Math.PI*2);
+              ctx.fill();
+              ctx.restore();
+              // small inner square to keep pixel feel
+              ctx.fillStyle = '#f4f4f4';
+              ctx.fillRect(Math.round(cx + c.w/2 - r*0.35), Math.round(cy - r*0.35), Math.round(r*0.7), Math.round(r*0.7));
             }
           });
 
@@ -315,9 +331,9 @@
             }
           }
 
-          // HUD: small label & collectibles
+          // HUD: small label & collectibles (subtle)
           const collectedCount = collectibles.filter(c=>c.collected).length;
-          ctx.fillStyle = '#000'; ctx.font = '14px monospace'; ctx.fillText('Collected: ' + collectedCount + ' / ' + COLLECT_TARGET, 12, 26);
+          ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.font = '14px monospace'; ctx.fillText('Collected: ' + collectedCount + ' / ' + COLLECT_TARGET, 12, 26);
           // if reveal in progress draw reveal overlay elements
           drawReveal();
         }
