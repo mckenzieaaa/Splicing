@@ -22,8 +22,9 @@
   .narrative.show{opacity:1}
   /* floating translucent text - no box */
   .narrative .card{background:transparent;color:rgba(28,28,28,0.96);padding:6px 12px;border-radius:6px;border:0;display:inline-block;font-family:monospace;font-size:20px;text-shadow:0 2px 6px rgba(255,255,255,0.03)}
-  .narrative.show .card{animation:floaty 6s ease-in-out infinite}
-  /* per-character wave will be applied via JS for a gentle narrative rise/fall */
+  .narrative .card span{display:inline-block;transition:transform 900ms cubic-bezier(.22,.9,.35,1),opacity 900ms ease}
+  .narrative.show .card{ /* keep a very slow subtle float for the whole block */ transform-origin:center; animation:floaty 10s ease-in-out infinite}
+  /* per-character random float handled by JS */
   @keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-8px)}100%{transform:translateY(0)}}
       .fadeScreen{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 600ms ease;z-index:30}
     </style>
@@ -85,11 +86,14 @@
         const tile = 16; // 16px logical pixel
         const groundY = VH - 6 * tile; // ground baseline
 
-        // player (logical size defined here; we scale drawing and physics optionally)
-          const player = { x: 120, y: groundY - 16, w:16, h:16, vx:0, onGround:true, dir:1, anim:0 };
-          const SPRITE_DRAW_SCALE = 2; // visual scale for sprite rendering
-          const PHYS_SCALE = SPRITE_DRAW_SCALE; // scale collision box to match visual size (change to 1 to keep original physics)
-          const VISUAL_SCALE = 2; // additional visual scale for non-physics elements (collectibles, decorations)
+        // visual / physics scale (increase to make everything larger on screen)
+          const SPRITE_DRAW_SCALE = 4; // visual scale for sprite rendering (was 2)
+          const PHYS_SCALE = SPRITE_DRAW_SCALE; // scale collision box to match visual size
+          const VISUAL_SCALE = 4; // additional visual scale for non-physics elements (collectibles, decorations)
+          // player (logical size defined here; y will be anchored to ground using scaled collision height)
+          const player = { x: 120, y: 0, w:16, h:16, vx:0, onGround:true, dir:1, anim:0 };
+          // ensure player visually sits on the ground according to PHYS_SCALE
+          player.y = groundY - player.h * PHYS_SCALE;
 
         // camera
         let camX = 0;
@@ -110,19 +114,19 @@
 
         // platforms and collectibles
         const platforms = [
-          {x:0, y:groundY, w:6000, h:6}
+          {x:0, y:groundY, w:14000, h:6}
         ];
 
         const collectibles = [
-          {x: 900, y: groundY - 24, w:8, h:8, collected:false},
-          {x: 1600, y: groundY - 40, w:8, h:8, collected:false},
-          {x: 2600, y: groundY - 24, w:8, h:8, collected:false}
+          {x: 1600, y: groundY - 24, w:8, h:8, collected:false},
+          {x: 3200, y: groundY - 40, w:8, h:8, collected:false},
+          {x: 5200, y: groundY - 24, w:8, h:8, collected:false}
         ];
 
         const COLLECT_TARGET = collectibles.length;
 
   // walking sprite (16x16) monochrome frames — 6 subtle frames for smoother movement
-        const SPRITES = [
+  const SPRITES = [
           [
             '0000000000000000','0000011111000000','0000111111100000','0001111111110000','0011111111111000','0011111111111000','0111111111111100','0111101110111100','0111101110111100','0111111111111100','0011110011111000','0011100001111000','0001100000110000','0000110001100000','0000011110000000','0000000000000000'
           ],
@@ -191,7 +195,7 @@
           if(player.anim && Math.abs(player.x - oldX) > 12){ playStep(); }
 
           // clamp
-          if(player.x < 40) player.x = 40;
+          if(player.x < 40 * PHYS_SCALE) player.x = 40 * PHYS_SCALE;
 
           // camera follows player with easing, clamp min at 0 (center the camera on player's collision center)
           const collisionW = player.w * PHYS_SCALE;
@@ -246,15 +250,36 @@
           // clear
           ctx.fillStyle = '#f4f4f4'; ctx.fillRect(0,0,VW,VH);
 
-          // draw layers (parallax)
-          layers.forEach(layer=>{
-            const px = - (camX * layer.speed) % (VW + 200);
-            ctx.fillStyle = layer.color;
-            // repeat rectangles across the width
-            for(let x = px - 200; x < VW; x += 400){
-              ctx.fillRect(x, layer.y, 360, layer.h);
+          // draw loaded mountain backgrounds (parallax)
+          bgMountains.forEach(mt=>{
+            if(!mt.img) return;
+            const px = - (camX * mt.speed) % (mt.img.width + 200);
+            for(let x = px - mt.img.width; x < VW; x += mt.img.width){
+              ctx.drawImage(mt.img, x, mt.y);
             }
           });
+
+          // draw loaded cloud backgrounds (parallax)
+          bgClouds.forEach(cl=>{
+            if(!cl.img) return;
+            const px = - (camX * cl.speed) % (cl.img.width * cl.scale + 200);
+            const w = cl.img.width * cl.scale;
+            const h = cl.img.height * cl.scale;
+            for(let x = px - w; x < VW; x += w + 100){
+              ctx.drawImage(cl.img, x, cl.y, w, h);
+            }
+          });
+
+          // draw old procedural layers if no bg loaded (fallback)
+          if(bgMountains.length === 0 && bgClouds.length === 0){
+            layers.forEach(layer=>{
+              const px = - (camX * layer.speed) % (VW + 200);
+              ctx.fillStyle = layer.color;
+              for(let x = px - 200; x < VW; x += 400){
+                ctx.fillRect(x, layer.y, 360, layer.h);
+              }
+            });
+          }
 
           // ground
           ctx.fillStyle = '#d0d0d0';
@@ -265,7 +290,7 @@
             if(!c.collected){
               const cx = Math.round(c.x - camX);
               const cy = Math.round(c.y + c.h*0.5);
-              const r = Math.round(6 * VISUAL_SCALE);
+              const r = Math.round(8 * VISUAL_SCALE);
               // soft glow
               ctx.save();
               ctx.shadowBlur = 12 * (VISUAL_SCALE/2);
@@ -281,46 +306,50 @@
             }
           });
 
-          // draw scenery (simple pixel-ish shapes)
+          // draw scenery (prefer sprite images anchored to ground; fallback to richer procedural drawing)
           if(typeof scenery !== 'undefined'){
             scenery.forEach(s=>{
               const sx = Math.round(s.x - camX);
-              // if a sprite image is available, draw it centered above s.y
               const img = SPRITE_IMAGES[s.type];
               if(img){
                 const iw = img.width; const ih = img.height;
-                const drawW = Math.round(iw * 0.7);
-                const drawH = Math.round(ih * 0.7);
-                ctx.drawImage(img, sx - Math.round(drawW/2), s.y - drawH + 8, drawW, drawH);
+                // allow type-specific scale (buildings should be larger)
+                const typeScale = (s.type === 'building') ? 1.2 : 0.9;
+                const drawW = Math.round(iw * typeScale);
+                const drawH = Math.round(ih * typeScale);
+                // anchor using s.y if provided (top Y), otherwise bottom-align to ground
+                const drawX = sx - Math.round(drawW/2);
+                const drawY = (typeof s.y === 'number') ? Math.round(s.y) : Math.round(groundY - drawH);
+                ctx.drawImage(img, drawX, drawY, drawW, drawH);
                 return;
               }
-              // fallback: richer procedural drawing
+              // fallback: richer procedural drawing anchored to s.y if present
               if(s.type === 'tree'){
-                // trunk with texture
-                ctx.fillStyle = '#8b6b3a';
-                for(let i=0;i<3;i++) ctx.fillRect(sx+6+i, s.y+8, 2, 12);
-                // layered foliage
-                ctx.fillStyle = '#d9d9d9'; ctx.fillRect(sx-6, s.y-6, 28, 12);
-                ctx.fillStyle = '#cfcfcf'; ctx.fillRect(sx-10, s.y-14, 36, 12);
-                // add some rough shading
-                ctx.fillStyle = '#bdbdbd'; ctx.fillRect(sx-2, s.y-2, 8, 6);
+                const h = 48; const trunkH = 20; const foliageH = h - trunkH;
+                const topY = (typeof s.y === 'number') ? s.y : (groundY - h);
+                // trunk
+                ctx.fillStyle = '#8b6b3a'; ctx.fillRect(sx+6, topY + foliageH, 6, trunkH);
+                // foliage
+                ctx.fillStyle = '#d9d9d9'; ctx.beginPath(); ctx.ellipse(sx+9, topY + foliageH/2, 30, foliageH/2, 0, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#cfcfcf'; ctx.beginPath(); ctx.ellipse(sx+9, topY + foliageH/2 - 8, 22, foliageH/2 - 6, 0, 0, Math.PI*2); ctx.fill();
               }else if(s.type === 'bench'){
-                ctx.fillStyle = '#cfcfcf'; ctx.fillRect(sx-10, s.y+4, 40, 8);
-                ctx.fillStyle = '#9f9f9f'; ctx.fillRect(sx-10, s.y+8, 6, 6); ctx.fillRect(sx+24, s.y+8, 6, 6);
+                const w = 44; const h = 12; const topY = (typeof s.y === 'number') ? s.y : (groundY - h - 2);
+                ctx.fillStyle = '#cfcfcf'; ctx.fillRect(sx - Math.round(w/2), topY, w, h);
+                ctx.fillStyle = '#9f9f9f'; ctx.fillRect(sx - Math.round(w/2), topY + h, 6, 10); ctx.fillRect(sx + Math.round(w/2) - 6, topY + h, 6, 10);
               }else if(s.type === 'building'){
-                // multi-layered building with roof and windows
-                ctx.fillStyle = '#e6e6e6'; ctx.fillRect(sx-30, s.y-64, 120, 64);
-                ctx.fillStyle = '#d0d0d0'; ctx.fillRect(sx-18, s.y-48, 36, 28);
-                ctx.fillRect(sx+30, s.y-48, 36, 28);
-                ctx.fillStyle = '#c0c0c0';
-                for(let pl=0;pl<6;pl++) ctx.fillRect(sx-28, s.y-20 + pl*6, 96, 2);
+                const w = 240; const h = 128; const topY = (typeof s.y === 'number') ? s.y : (groundY - h);
+                ctx.fillStyle = '#e6e6e6'; ctx.fillRect(sx - Math.round(w/2), topY, w, h);
+                ctx.fillStyle = '#d0d0d0'; ctx.fillRect(sx - 60, topY + 18, 80, 60);
+                ctx.fillStyle = '#c0c0c0'; for(let pl=0;pl<6;pl++) ctx.fillRect(sx - 80, topY + 48 + pl*8, w-40, 6);
               }else if(s.type === 'sign'){
-                ctx.fillStyle = '#bfbfbf'; ctx.fillRect(sx, s.y-16, 6, 24);
-                ctx.fillStyle = '#ffffff'; ctx.fillRect(sx+6, s.y-10, 44, 12);
-                ctx.fillStyle = '#d0d0d0'; ctx.fillRect(sx+10, s.y-8, 28, 6);
+                const h = 40; const topY = (typeof s.y === 'number') ? s.y : (groundY - h);
+                ctx.fillStyle = '#bfbfbf'; ctx.fillRect(sx, topY + 6, 6, h - 6);
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(sx + 8, topY + 12, 44, 12);
+                ctx.fillStyle = '#d0d0d0'; ctx.fillRect(sx + 12, topY + 14, 28, 6);
               }else if(s.type === 'lamp'){
-                ctx.fillStyle = '#8b8b8b'; ctx.fillRect(sx+8, s.y-36, 6, 40);
-                ctx.fillStyle = '#fff6d6'; ctx.fillRect(sx+2, s.y-46, 20, 12);
+                const h = 56; const topY = (typeof s.y === 'number') ? s.y : (groundY - h);
+                ctx.fillStyle = '#8b8b8b'; ctx.fillRect(sx + 8, topY + 6, 6, h - 6);
+                ctx.fillStyle = '#fff6d6'; ctx.fillRect(sx - 8, topY - 6, 24, 12);
               }
             });
           }
@@ -328,25 +357,93 @@
           // draw player at center-ish
           const px = Math.round(player.x - camX);
           const py = Math.round(player.y);
-          // draw larger shadow (scaled with sprite)
-          const shadowW = 28 * SPRITE_DRAW_SCALE;
-          const shadowH = 6 * SPRITE_DRAW_SCALE;
-          ctx.fillStyle = 'rgba(0,0,0,0.08)';
-          ctx.fillRect(px-6*SPRITE_DRAW_SCALE, groundY+2, shadowW, shadowH);
+          // subtle soft shadow under player (no block)
+          ctx.save();
+          ctx.globalAlpha = 0.12;
+          ctx.fillStyle = '#000';
+          const shW = 10 * SPRITE_DRAW_SCALE;
+          const shH = 3 * SPRITE_DRAW_SCALE;
+          ctx.beginPath();
+          ctx.ellipse(px + (player.w*SPRITE_DRAW_SCALE)/2, groundY + 6, shW, shH, 0, 0, Math.PI*2);
+          ctx.fill();
+          ctx.restore();
 
-          // draw sprite pixel-by-pixel (monochrome) with 4-frame animation, scaled up
-          const frameIndex = Math.floor(animTick) % SPRITES.length;
-          const spriteData = SPRITES[frameIndex];
-          for(let y=0;y<16;y++){
-            const row = spriteData[y];
-            for(let x=0;x<16;x++){
-              if(row[x] === '1'){
-                ctx.fillStyle = '#0a0a0a';
-                const drawX = (player.dir === 1) ? (px + x*SPRITE_DRAW_SCALE) : (px + (15-x)*SPRITE_DRAW_SCALE);
-                const drawY = py + y*SPRITE_DRAW_SCALE;
-                ctx.fillRect(drawX, drawY, SPRITE_DRAW_SCALE, SPRITE_DRAW_SCALE);
+          // draw player sprite (use loaded spritesheet if available, else fallback to hardcoded)
+          if(playerWalkSheet && player.anim){
+            // Extract frame from walk spritesheet (assume 10 frames horizontally)
+            const totalFrames = 10;
+            const frameIndex = Math.floor(animTick) % totalFrames;
+            const sw = playerWalkSheet.width / totalFrames;
+            const sh = playerWalkSheet.height;
+            const dw = sw * (SPRITE_DRAW_SCALE / 2); // scale to match our visual size
+            const dh = sh * (SPRITE_DRAW_SCALE / 2);
+            ctx.save();
+            if(player.dir === -1){
+              ctx.scale(-1, 1);
+              ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, -px - dw, py, dw, dh);
+            }else{
+              ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, px, py, dw, dh);
+            }
+            ctx.restore();
+          }else if(playerIdleSheet && !player.anim){
+            // Draw idle frame
+            const totalFrames = 10;
+            const frameIndex = Math.floor(animTick / 2) % totalFrames;
+            const sw = playerIdleSheet.width / totalFrames;
+            const sh = playerIdleSheet.height;
+            const dw = sw * (SPRITE_DRAW_SCALE / 2);
+            const dh = sh * (SPRITE_DRAW_SCALE / 2);
+            ctx.save();
+            if(player.dir === -1){
+              ctx.scale(-1, 1);
+              ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, -px - dw, py, dw, dh);
+            }else{
+              ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, px, py, dw, dh);
+            }
+            ctx.restore();
+          }else{
+            // fallback: draw hardcoded sprite pixel-by-pixel (monochrome) with 4-frame animation, scaled up
+            const frameIndex = Math.floor(animTick) % SPRITES.length;
+            const spriteData = SPRITES[frameIndex];
+            for(let y=0;y<16;y++){
+              const row = spriteData[y];
+              for(let x=0;x<16;x++){
+                if(row[x] === '1'){
+                  ctx.fillStyle = '#0a0a0a';
+                  const drawX = (player.dir === 1) ? (px + x*SPRITE_DRAW_SCALE) : (px + (15-x)*SPRITE_DRAW_SCALE);
+                  const drawY = py + y*SPRITE_DRAW_SCALE;
+                  ctx.fillRect(drawX, drawY, SPRITE_DRAW_SCALE, SPRITE_DRAW_SCALE);
+                }
               }
             }
+          }
+
+          // draw a small foreground pass from the lowest parallax layer so part of that layer sits
+          // in front of the player (creates the half-behind / half-in-front effect)
+          if(bgMountains.length > 0){
+            ctx.save();
+            ctx.globalAlpha = 0.12;
+            const fg = bgMountains[bgMountains.length - 1];
+            if(fg.img){
+              const px = - (camX * fg.speed) % (fg.img.width + 200);
+              for(let x = px - fg.img.width; x < VW; x += fg.img.width){
+                // draw bottom half of mountain as foreground overlay
+                const clipH = Math.round(fg.img.height * 0.4);
+                ctx.drawImage(fg.img, 0, fg.img.height - clipH, fg.img.width, clipH, x, fg.y + fg.img.height - clipH, fg.img.width, clipH);
+              }
+            }
+            ctx.restore();
+          }else if(layers.length > 0){
+            // fallback to old procedural
+            ctx.save();
+            ctx.globalAlpha = 0.16;
+            const fg = layers[layers.length-1];
+            const pxfg = - (camX * fg.speed) % (VW + 200);
+            ctx.fillStyle = fg.color;
+            for(let x = pxfg - 200; x < VW; x += 400){
+              ctx.fillRect(x, fg.y + Math.round(fg.h*0.5), 360, Math.round(fg.h*0.5));
+            }
+            ctx.restore();
           }
 
           // HUD: small label & collectibles (subtle)
@@ -479,7 +576,7 @@
             // lowpass gentle sweep
             lp.frequency.setTargetAtTime(1000 + v*800, now, 2.2);
             // occasional bell
-            if(Math.random() < 0.08){
+            if(Math.random() < 0.06){
               const g = audioCtx.createGain(); g.gain.value = 0.0001; bell.connect(g); g.connect(audioCtx.destination);
               const now2 = audioCtx.currentTime;
               g.gain.setValueAtTime(0.0001, now2);
@@ -487,7 +584,30 @@
               g.gain.exponentialRampToValueAtTime(0.0001, now2 + 1.0);
               setTimeout(()=>{ try{ g.disconnect(); }catch(e){} }, 1500);
             }
-          }, 400);
+          }, 420);
+
+          // melodic motif (simple pure-music loop)
+          const melody = [220, 246.94, 261.63, 196]; // A3, B3, C4, G3
+          let mi = 0;
+          ambientNodes._melodyInt = setInterval(()=>{
+            const f = melody[mi % melody.length] * (Math.random() < 0.2 ? 0.5 : 1);
+            playAmbientNote(f, 0.9, 0.08);
+            mi++;
+          }, 900);
+        }
+
+        function playAmbientNote(freq, dur=0.9, gain=0.06){
+          if(!audioCtx) return;
+          const o = audioCtx.createOscillator(); o.type = 'sine'; o.frequency.value = freq;
+          const g = audioCtx.createGain(); g.gain.value = 0.0001;
+          // gentle lowpass per-note
+          const f = audioCtx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2000;
+          o.connect(g); g.connect(f); f.connect(audioCtx.destination);
+          o.start();
+          const now = audioCtx.currentTime;
+          g.gain.exponentialRampToValueAtTime(gain, now + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+          o.stop(now + dur + 0.05);
         }
 
         function stopAmbient(){
@@ -520,11 +640,11 @@
 
         // scenic decorations and proximity triggers
         const scenery = [
-          {x: 380, y: groundY - 48, type:'tree', text: '一棵老槐，树皮有些裂痕。'},
-          {x: 980, y: groundY - 32, type:'bench', text: '长椅上刻着模糊的名字。'},
-          {x: 1500, y: groundY - 88, type:'building', text: '远处有一栋低矮的屋子，窗里没有人。'},
-          {x: 2300, y: groundY - 40, type:'sign', text: '路牌指向没有名字的村庄。'},
-          {x: 3050, y: groundY - 56, type:'lamp', text: '旧路灯还在，夜里会亮。'}
+          {x: 760, y: groundY - 72, type:'tree', text: '一棵老槐，树皮有些裂痕。'},
+          {x: 1960, y: groundY - 48, type:'bench', text: '长椅上刻着模糊的名字。'},
+          {x: 3000, y: groundY - 200, type:'building', text: '远处有一栋低矮的屋子，窗里没有人。'},
+          {x: 4600, y: groundY - 64, type:'sign', text: '路牌指向没有名字的村庄。'},
+          {x: 6100, y: groundY - 88, type:'lamp', text: '旧路灯还在，夜里会亮。'}
         ];
         const sceneryTriggered = new Set();
         // inline SVG sprites (grayscale) for richer scenery without external assets
@@ -601,6 +721,90 @@
             im.src = makeURI(pairs[k]);
           });
         })();
+
+        // --- user asset loader + runtime monochrome converter ---
+        // Converts any image to black/white/gray 4-level palette
+        function convertImageToMonochrome(img){
+          const w = img.width, h = img.height;
+          const tc = document.createElement('canvas'); tc.width = w; tc.height = h;
+          const tctx = tc.getContext('2d'); tctx.drawImage(img,0,0);
+          try{
+            const id = tctx.getImageData(0,0,w,h);
+            const d = id.data;
+            // simple 4-level palette mapping (black, dark gray, light gray, white)
+            for(let i=0;i<d.length;i+=4){
+              const r = d[i], g = d[i+1], b = d[i+2], a = d[i+3];
+              if(a < 10){ d[i]=d[i+1]=d[i+2]=0; d[i+3]=0; continue; } // preserve transparency
+              const lum = 0.299*r + 0.587*g + 0.114*b; // 0..255
+              let v = 0;
+              if(lum < 60) v = 0;
+              else if(lum < 140) v = 110;
+              else if(lum < 200) v = 190;
+              else v = 255;
+              d[i] = d[i+1] = d[i+2] = v;
+            }
+            tctx.putImageData(id,0,0);
+            return tc;
+          }catch(e){
+            // CORS or read error — return original canvas
+            return tc;
+          }
+        }
+
+        // Load image and convert to monochrome, return as Image
+        function loadAndConvertImage(path, callback){
+          const im = new Image(); im.crossOrigin = 'anonymous';
+          im.onload = ()=>{
+            try{
+              const monoCanvas = convertImageToMonochrome(im);
+              const monoImg = new Image();
+              monoImg.onload = ()=>{ callback(monoImg); };
+              monoImg.src = monoCanvas.toDataURL();
+            }catch(e){
+              callback(im); // fallback to original
+            }
+          };
+          im.onerror = ()=>{ callback(null); };
+          im.src = path;
+        }
+
+        // Player sprite sheet state
+        let playerWalkSheet = null;
+        let playerIdleSheet = null;
+        let playerRunSheet = null;
+        const playerFrameW = 48; // typical frame width (adjust if needed)
+        const playerFrameH = 48; // typical frame height
+
+        // Background layers loaded from assets
+        const bgMountains = [];
+        const bgClouds = [];
+        const bgNatureObjects = [];
+
+        // Load player walk spritesheet
+        loadAndConvertImage('./assets/player/Walk.png', (img)=>{
+          if(img){
+            playerWalkSheet = img;
+            // Parse sprite sheet into frames (assuming horizontal strip, 10 frames based on your screenshot)
+            // We'll extract frames dynamically in draw code
+          }
+        });
+
+        // Load player idle spritesheet
+        loadAndConvertImage('./assets/player/Idle.png', (img)=>{ if(img) playerIdleSheet = img; });
+
+        // Load mountains (choose one set, e.g., m1)
+        loadAndConvertImage('./assets/backgrounds/m1/2.png', (img)=>{ if(img) bgMountains.push({img, speed:0.1, y:180}); });
+        loadAndConvertImage('./assets/backgrounds/m1/3.png', (img)=>{ if(img) bgMountains.push({img, speed:0.15, y:220}); });
+        loadAndConvertImage('./assets/backgrounds/m1/4.png', (img)=>{ if(img) bgMountains.push({img, speed:0.2, y:280}); });
+
+        // Load clouds (choose one set, e.g., Clouds 1)
+        loadAndConvertImage('./assets/backgrounds/Clouds 1/1.png', (img)=>{ if(img) bgClouds.push({img, speed:0.05, y:60, scale:0.6}); });
+        loadAndConvertImage('./assets/backgrounds/Clouds 1/2.png', (img)=>{ if(img) bgClouds.push({img, speed:0.08, y:120, scale:0.7}); });
+
+        // Load nature objects (trees, rocks, etc. from nature_1)
+        loadAndConvertImage('./assets/backgrounds/nature_1/2.png', (img)=>{ if(img) SPRITE_IMAGES['tree'] = img; });
+        loadAndConvertImage('./assets/backgrounds/nature_1/5.png', (img)=>{ if(img) SPRITE_IMAGES['rock'] = img; });
+        loadAndConvertImage('./assets/backgrounds/nature_1/7.png', (img)=>{ if(img) SPRITE_IMAGES['bush'] = img; });
 
         function showNarrative(txt, dur){
           const el = document.getElementById('narrative'); const content = document.getElementById('narrativeText');
