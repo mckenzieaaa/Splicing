@@ -805,8 +805,8 @@
           ctx.fillText('CONTROLS', hintX + 12, hintY + 24);
           
           ctx.font = '14px "PixelFont", "Courier New", monospace';
-          ctx.fillText('← → / A D : Move', hintX + 12, hintY + 48);
-          ctx.fillText('↑ / W / Space : Jump', hintX + 12, hintY + 68);
+          ctx.fillText('A D : Move', hintX + 12, hintY + 48);
+          ctx.fillText('W / Space : Jump', hintX + 12, hintY + 68);
           ctx.fillText('Shift : Run', hintX + 12, hintY + 88);
           
           ctx.font = '12px "PixelFont", "Courier New", monospace';
@@ -1039,18 +1039,18 @@
         const scenery = [
           // Early section - introduce the scene
           {x: 800, type: 'item6', scale: 0.25, yOffset: 50, text: 'A small stone rests quietly in the grass'},
-          {x: 1400, type: 'cow_tree', scale: 0.3, yOffset: 80, text: 'A cow grazes peacefully under the old tree'},
+          {x: 1400, type: 'cow_tree', scale: 0.45, yOffset: 60, text: 'A cow grazes peacefully under the old tree'},
           
           // Mid section - around first collectible (x=2400)
           {x: 3000, type: 'house', scale: 0.35, yOffset: 100, text: 'An abandoned house stands alone in silence'},
           
           // Mid-late section - around second collectible (x=5600)
-          {x: 4200, type: 'cow_tree', scale: 0.3, yOffset: 80, text: 'Tree shadows drift past whispers in the distance'},
+          {x: 4200, type: 'cow_tree', scale: 0.45, yOffset: 60, text: 'Tree shadows drift past whispers in the distance'},
           {x: 5000, type: 'item6', scale: 0.25, yOffset: 50, text: 'Weathered rocks mark the forgotten path'},
           
           // Late section - around third collectible (x=8800)
           {x: 7400, type: 'house', scale: 0.35, yOffset: 100, text: 'Time has worn these walls to memory'},
-          {x: 8200, type: 'cow_tree', scale: 0.3, yOffset: 80, text: 'The cow and tree wait together unchanged'},
+          {x: 8200, type: 'cow_tree', scale: 0.45, yOffset: 60, text: 'The cow and tree wait together unchanged'},
           {x: 9400, type: 'item6', scale: 0.25, yOffset: 50, text: 'Small things left behind by travelers'}
         ];
         const sceneryTriggered = new Set();
