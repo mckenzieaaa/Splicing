@@ -386,38 +386,41 @@
           // draw player sprite (use loaded spritesheet if available, else fallback to hardcoded)
           const offsetY = -240; // Move sprite up 240px from physics position (applies to all rendering)
           
-          if(playerWalkSheet && player.anim){
-            // Extract frame from walk spritesheet (assume 10 frames horizontally)
-            const totalFrames = 10;
-            const frameIndex = Math.floor(animTick) % totalFrames;
-            const sw = playerWalkSheet.width / totalFrames;
-            const sh = playerWalkSheet.height;
-            const dw = sw * 3; // Keep player at 3x scale
-            const dh = sh * 3;
-            ctx.save();
-            if(player.dir === -1){
-              ctx.scale(-1, 1);
-              ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, -px - dw, py + offsetY, dw, dh);
+          if(playerWalkSheet && playerIdleSheet){
+            // Use loaded sprite sheets
+            if(player.anim){
+              // Walking animation - 10 frames
+              const totalFrames = 10;
+              const frameIndex = Math.floor(animTick) % totalFrames;
+              const sw = playerWalkSheet.width / totalFrames;
+              const sh = playerWalkSheet.height;
+              const dw = sw * 3; // Keep player at 3x scale
+              const dh = sh * 3;
+              ctx.save();
+              if(player.dir === -1){
+                ctx.scale(-1, 1);
+                ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, -px - dw, py + offsetY, dw, dh);
+              }else{
+                ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, px, py + offsetY, dw, dh);
+              }
+              ctx.restore();
             }else{
-              ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, px, py + offsetY, dw, dh);
+              // Idle animation - 6 frames
+              const totalFrames = 6;
+              const frameIndex = Math.floor(animTick / 2) % totalFrames;
+              const sw = playerIdleSheet.width / totalFrames;
+              const sh = playerIdleSheet.height;
+              const dw = sw * 3; // Keep player at 3x scale
+              const dh = sh * 3;
+              ctx.save();
+              if(player.dir === -1){
+                ctx.scale(-1, 1);
+                ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, -px - dw, py + offsetY, dw, dh);
+              }else{
+                ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, px, py + offsetY, dw, dh);
+              }
+              ctx.restore();
             }
-            ctx.restore();
-          }else if(playerIdleSheet && !player.anim){
-            // Draw idle frame
-            const totalFrames = 10;
-            const frameIndex = Math.floor(animTick / 2) % totalFrames;
-            const sw = playerIdleSheet.width / totalFrames;
-            const sh = playerIdleSheet.height;
-            const dw = sw * 3; // Keep player at 3x scale
-            const dh = sh * 3;
-            ctx.save();
-            if(player.dir === -1){
-              ctx.scale(-1, 1);
-              ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, -px - dw, py + offsetY, dw, dh);
-            }else{
-              ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, px, py + offsetY, dw, dh);
-            }
-            ctx.restore();
           }else{
             // fallback: draw hardcoded sprite pixel-by-pixel (monochrome) with 4-frame animation, scaled up
             const frameIndex = Math.floor(animTick) % SPRITES.length;
