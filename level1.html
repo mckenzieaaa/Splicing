@@ -81,9 +81,10 @@
         const tile = 16; // 16px logical pixel
         const groundY = VH - 6 * tile; // ground baseline
 
-        // player (logical size stays 16x16; drawScale increases visual size)
+        // player (logical size defined here; we scale drawing and physics optionally)
           const player = { x: 120, y: groundY - 16, w:16, h:16, vx:0, onGround:true, dir:1, anim:0 };
-          const SPRITE_DRAW_SCALE = 2; // change to 2 or 3 to make the character visually larger
+          const SPRITE_DRAW_SCALE = 2; // visual scale for sprite rendering
+          const PHYS_SCALE = SPRITE_DRAW_SCALE; // scale collision box to match visual size (change to 1 to keep original physics)
 
         // camera
         let camX = 0;
@@ -187,16 +188,19 @@
           // clamp
           if(player.x < 40) player.x = 40;
 
-          // camera follows player with easing, clamp min at 0
-          const targetCam = Math.max(0, player.x - VW*0.35);
+          // camera follows player with easing, clamp min at 0 (center the camera on player's collision center)
+          const collisionW = player.w * PHYS_SCALE;
+          const collisionH = player.h * PHYS_SCALE;
+          const playerCenterX = player.x + collisionW * 0.5;
+          const targetCam = Math.max(0, playerCenterX - VW*0.35);
           camX += (targetCam - camX) * Math.min(1, dt/200);
 
-          // platform collision (simple ground)
+          // platform collision (simple ground) — use scaled collision box
           platforms.forEach(p=>{
-            if(player.x + player.w > p.x && player.x < p.x + p.w){
-              if(player.y + player.h > p.y && player.y + player.h < p.y + p.h + 64){
-                // snap to platform
-                player.y = p.y - player.h;
+            if(player.x + collisionW > p.x && player.x < p.x + p.w){
+              if(player.y + collisionH > p.y && player.y + collisionH < p.y + p.h + 64){
+                // snap to platform (align visual bottom correctly by using collisionH)
+                player.y = p.y - collisionH;
                 player.vy = 0;
                 player.onGround = true;
               }
@@ -207,10 +211,10 @@
           const jumpPressed = jumpKeys.some(k => keys[k]);
           if(jumpPressed && wasOnGround){ player.vy = JUMP_V; player.onGround = false; playStep(); }
 
-          // collectibles
+          // collectibles (use scaled collision box for detection)
           collectibles.forEach(c=>{
             if(!c.collected){
-              if(player.x + player.w > c.x && player.x < c.x + c.w && player.y + player.h > c.y && player.y < c.y + c.h){
+              if(player.x + collisionW > c.x && player.x < c.x + c.w && player.y + collisionH > c.y && player.y < c.y + c.h){
                 c.collected = true; playPickup();
               }
             }
