@@ -250,33 +250,24 @@
           // clear
           ctx.fillStyle = '#f4f4f4'; ctx.fillRect(0,0,VW,VH);
 
-          // Sort and draw background layers by z-order (1=back, 5=front)
-          const sortedLayers = bgLayers.slice().sort((a,b) => a.z - b.z);
-          
-          sortedLayers.forEach(layer => {
-            if(!layer.img) return;
+          // Draw the composite background (all 5 layers merged) with parallax
+          if(compositeBackground){
+            const bgW = compositeBackground.width;
+            const bgH = compositeBackground.height;
+            const parallaxSpeed = 0.3; // Single parallax speed for the whole scene
+            const offsetX = -(camX * parallaxSpeed);
             
-            if(layer.repeat){
-              // Tile/repeat the layer horizontally with parallax
-              const offsetX = -(camX * layer.speed);
-              const imgW = layer.img.width;
-              const imgH = layer.img.height;
-              
-              // Calculate how many tiles we need to cover the screen
-              const startX = Math.floor(offsetX / imgW) * imgW;
-              
-              for(let x = startX - imgW; x < VW + imgW; x += imgW){
-                ctx.drawImage(layer.img, x, layer.y, imgW, imgH);
-              }
-            }else{
-              // Single image, positioned with parallax
-              const px = -(camX * layer.speed);
-              ctx.drawImage(layer.img, px, layer.y);
+            // Tile the composite background horizontally
+            const startX = Math.floor(offsetX / bgW) * bgW;
+            
+            // Calculate Y position to anchor bottom of background to groundY
+            const bgY = groundY - bgH;
+            
+            for(let x = startX - bgW; x < VW + bgW; x += bgW){
+              ctx.drawImage(compositeBackground, x, bgY, bgW, bgH);
             }
-          });
-
-          // Draw old procedural ground if no background layers loaded (fallback)
-          if(bgLayers.length === 0){
+          }else{
+            // Fallback: draw old procedural layers if composite not ready
             layers.forEach(layer=>{
               const px = - (camX * layer.speed) % (VW + 200);
               ctx.fillStyle = layer.color;
@@ -422,20 +413,24 @@
             }
           }
 
-          // draw a small foreground pass from the ground layer (layer 5) so part of it sits
-          // in front of the player (creates the half-behind / half-in-front effect)
-          const groundLayer = bgLayers.find(l => l.z === 5);
-          if(groundLayer && groundLayer.img){
+          // draw a small foreground pass from the composite background bottom portion
+          // to create depth (part of ground in front of player)
+          if(compositeBackground){
             ctx.save();
-            ctx.globalAlpha = 0.3;
-            const offsetX = -(camX * groundLayer.speed);
-            const imgW = groundLayer.img.width;
-            const startX = Math.floor(offsetX / imgW) * imgW;
-            // Draw only bottom portion as foreground overlay
-            const clipH = Math.round(groundLayer.img.height * 0.5);
-            for(let x = startX - imgW; x < VW + imgW; x += imgW){
-              ctx.drawImage(groundLayer.img, 0, groundLayer.img.height - clipH, imgW, clipH, 
-                           x, groundLayer.y + groundLayer.img.height - clipH, imgW, clipH);
+            ctx.globalAlpha = 0.2;
+            const bgW = compositeBackground.width;
+            const bgH = compositeBackground.height;
+            const parallaxSpeed = 0.3;
+            const offsetX = -(camX * parallaxSpeed);
+            const startX = Math.floor(offsetX / bgW) * bgW;
+            const bgY = groundY - bgH;
+            
+            // Draw only bottom 30% of composite as foreground overlay
+            const clipH = Math.round(bgH * 0.3);
+            const clipY = bgH - clipH;
+            
+            for(let x = startX - bgW; x < VW + bgW; x += bgW){
+              ctx.drawImage(compositeBackground, 0, clipY, bgW, clipH, x, bgY + clipY, bgW, clipH);
             }
             ctx.restore();
           }else if(layers.length > 0){
@@ -780,46 +775,70 @@
         const playerFrameW = 48; // typical frame width (adjust if needed)
         const playerFrameH = 48; // typical frame height
 
-        // Background layers loaded from user assets (5 layers: 1=sky, 2=clouds, 3=far mountains, 4=near mountains, 5=ground)
-        const bgLayers = [];
+        // Background composite: load 5 layers and merge them into one complete scene
+        const bgLayerImages = [];
+        let compositeBackground = null;
 
         // Load player walk spritesheet
         loadAndConvertImage('./assets/player/Walk.png', (img)=>{
           if(img){
             playerWalkSheet = img;
-            // Parse sprite sheet into frames (assuming horizontal strip, 10 frames based on your screenshot)
-            // We'll extract frames dynamically in draw code
           }
         });
 
         // Load player idle spritesheet
         loadAndConvertImage('./assets/player/Idle.png', (img)=>{ if(img) playerIdleSheet = img; });
 
-        // Load 5 background layers with appropriate parallax speeds
-        // Layer 1: Sky/base color (slowest parallax)
-        loadAndConvertImage('./assets/backgrounds/background/1.png', (img)=>{ 
-          if(img) bgLayers.push({img, speed:0.05, y:0, z:1, repeat:true}); 
-        });
+        // Load 5 background layers and composite them into one image
+        // These layers stack on top of each other to form the complete background (like pre.png)
+        let loadedCount = 0;
+        const totalLayers = 5;
 
-        // Layer 2: Clouds (slow)
-        loadAndConvertImage('./assets/backgrounds/background/2.png', (img)=>{ 
-          if(img) bgLayers.push({img, speed:0.1, y:0, z:2, repeat:true}); 
-        });
+        for(let i = 1; i <= totalLayers; i++){
+          loadAndConvertImage(`./assets/backgrounds/background/${i}.png`, (img) => {
+            if(img){
+              bgLayerImages[i-1] = img;
+            }
+            loadedCount++;
+            // Once all layers loaded, composite them
+            if(loadedCount === totalLayers){
+              compositeBackgroundLayers();
+            }
+          });
+        }
 
-        // Layer 3: Far mountains (medium)
-        loadAndConvertImage('./assets/backgrounds/background/3.png', (img)=>{ 
-          if(img) bgLayers.push({img, speed:0.2, y:VH - img.height - 200, z:3, repeat:true}); 
-        });
+        function compositeBackgroundLayers(){
+          // Find the dimensions (use largest width/height from all layers)
+          let maxW = 0, maxH = 0;
+          bgLayerImages.forEach(img => {
+            if(img){
+              maxW = Math.max(maxW, img.width);
+              maxH = Math.max(maxH, img.height);
+            }
+          });
 
-        // Layer 4: Near mountains (faster, foreground-ish)
-        loadAndConvertImage('./assets/backgrounds/background/4.png', (img)=>{ 
-          if(img) bgLayers.push({img, speed:0.4, y:VH - img.height - 100, z:4, repeat:true}); 
-        });
+          if(maxW === 0 || maxH === 0) return;
 
-        // Layer 5: Ground (fastest, player walks on this)
-        loadAndConvertImage('./assets/backgrounds/background/5.png', (img)=>{ 
-          if(img) bgLayers.push({img, speed:0.6, y:groundY - 20, z:5, repeat:true}); 
-        });
+          // Create a canvas to composite all layers
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = maxW;
+          tempCanvas.height = maxH;
+          const tempCtx = tempCanvas.getContext('2d');
+
+          // Draw layers 1-5 on top of each other
+          bgLayerImages.forEach(img => {
+            if(img){
+              tempCtx.drawImage(img, 0, 0);
+            }
+          });
+
+          // Convert to image
+          compositeBackground = new Image();
+          compositeBackground.onload = () => {
+            console.log('Composite background ready:', compositeBackground.width, 'x', compositeBackground.height);
+          };
+          compositeBackground.src = tempCanvas.toDataURL();
+        }
 
         function showNarrative(txt, dur){
           const el = document.getElementById('narrative'); const content = document.getElementById('narrativeText');
