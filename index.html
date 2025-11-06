@@ -1,63 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Splicing — Main Menu</title>
-    <link rel="stylesheet" href="./style.css">
+    <title>Splicing — Level 1</title>
+    <meta http-equiv="refresh" content="0; url=level1.html">
+    <style>/* minimal fallback */body{margin:0;font-family:system-ui,Arial;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh} a{color:#8ef}</style>
   </head>
   <body>
-    <main class="container">
-      <h1>Splicing — 主界面</h1>
-
-      <section class="controls">
-        <div class="field">
-          <label for="numericKey">Mainline numeric key (from levels)</label>
-          <input id="numericKey" placeholder="e.g. 1030" />
-          <button id="applyNumeric">Apply</button>
-        </div>
-
-        <div class="field">
-          <label for="styleKey">Style key / key2 (e.g. POLYU)</label>
-          <input id="styleKey" placeholder="POLYU" />
-          <button id="applyStyle">Apply</button>
-        </div>
-
-        <div class="notes">
-          <p>Level final passwords: 1030 / 0218 / 1218 (each level drops its code on completion).</p>
-          <p>Enter the numeric key in the first field to unlock the next level. Enter <strong>POLYU</strong> in the style field to show a pixel PolyU Easter egg on the bead-board.</p>
-        </div>
-      </section>
-
-      <section class="beadboard-wrap">
-        <canvas id="beadboard"></canvas>
-      </section>
-
-      <section class="levels">
-        <div class="level" data-level="1">
-          <h3>Level 1 — 黑白像素</h3>
-          <p>Palette: black / white / gray</p>
-          <button class="play" data-href="level1.html">Play</button>
-          <div class="status">Locked</div>
-        </div>
-
-        <div class="level" data-level="2">
-          <h3>Level 2 — 冷色（黑白 + 2 色）</h3>
-          <p>Palette: black / white + 2 cool colors</p>
-          <button class="play" data-href="level2.html">Play</button>
-          <div class="status">Locked</div>
-        </div>
-
-        <div class="level" data-level="3">
-          <h3>Level 3 — 彩色（暖色调）</h3>
-          <p>Palette: warm colors</p>
-          <button class="play" data-href="level3.html">Play</button>
-          <div class="status">Locked</div>
-        </div>
-      </section>
-
-    </main>
-
-    <script src="./app.js"></script>
+    <div>
+      如果没有自动跳转，请点击： <a href="level1.html">开始 Level 1</a>
+    </div>
   </body>
 </html>
