@@ -10,11 +10,13 @@
       .overlay{position:fixed;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center}
       .msg{background:#fff;padding:18px;border:4px solid #000;color:#000}
       .hint{position:fixed;left:12px;top:12px;color:#ccc;font-family:monospace}
+      .mute{position:fixed;right:12px;top:12px;background:rgba(0,0,0,0.5);color:#fff;padding:6px 10px;border-radius:6px;cursor:pointer;font-family:monospace}
     </style>
   </head>
   <body>
     <canvas id="game"></canvas>
     <div class="hint">控制：← → 或 A D — 到达远处白色旗帜收集并完成关卡</div>
+  <div id="muteBtn" class="mute">Mute</div>
 
     <div id="completeOverlay" class="overlay" style="display:none">
       <div class="msg">
@@ -71,7 +73,7 @@
 
         const flag = { x: 3000, y: groundY - 48, w: 10, h: 48, collected:false };
 
-        // walking sprite (16x16) monochrome frames — 4 subtle frames for smoother movement
+  // walking sprite (16x16) monochrome frames — 6 subtle frames for smoother movement
         const SPRITES = [
           [
             '0000000000000000','0000011111000000','0000111111100000','0001111111110000','0011111111111000','0011111111111000','0111111111111100','0111101110111100','0111101110111100','0111111111111100','0011110011111000','0011100001111000','0001100000110000','0000110001100000','0000011110000000','0000000000000000'
@@ -88,6 +90,27 @@
         ];
 
         let animTick = 0;
+        // audio
+        let audioCtx = null;
+        let muted = false;
+        function ensureAudio(){
+          if(audioCtx) return;
+          try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ audioCtx = null; }
+        }
+        function playTone(freq, time=0.08, type='sine', gain=0.08){
+          if(muted) return;
+          ensureAudio(); if(!audioCtx) return;
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.type = type; o.frequency.value = freq;
+          g.gain.value = gain;
+          o.connect(g); g.connect(audioCtx.destination);
+          o.start();
+          g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + time);
+          o.stop(audioCtx.currentTime + time + 0.02);
+        }
+        function playStep(){ playTone(200, 0.06, 'triangle', 0.03); }
+        function playPickup(){ playTone(880, 0.18, 'sine', 0.12); }
 
         function update(dt){
           // input
@@ -99,7 +122,10 @@
           else { player.vx = 0; player.anim = 0; }
 
           // apply velocity
+          const oldX = player.x;
           player.x += player.vx * (dt/1000);
+          // footsteps sound when moving
+          if(player.anim && Math.abs(player.x - oldX) > 12){ playStep(); }
 
           // clamp
           if(player.x < 40) player.x = 40;
@@ -111,6 +137,7 @@
           // check flag collection
           if(!flag.collected && player.x + player.w/2 >= flag.x){
             flag.collected = true;
+            playPickup();
             onComplete();
           }
         }
@@ -165,6 +192,8 @@
 
           // HUD: small label
           ctx.fillStyle = '#000'; ctx.font = '14px monospace'; ctx.fillText('远处的旗帜会掉落 key', 12, 26);
+          // if reveal in progress draw reveal overlay elements
+          drawReveal();
         }
 
         let last = performance.now();
@@ -188,21 +217,52 @@
           localStorage.setItem('splicing_state_v1', JSON.stringify(s));
         }
 
+        // simple pixel font (5x7) for large pixel text rendering
+        const PIXEL_FONT = {
+          '0': [0x7C,0xC6,0xCE,0xD6,0xE6,0xC6,0x7C],
+          '1': [0x18,0x38,0x18,0x18,0x18,0x18,0x7E],
+          '2': [0x7C,0xC6,0x06,0x1C,0x30,0x66,0xFE],
+          '3': [0x7C,0xC6,0x06,0x3C,0x06,0xC6,0x7C]
+        };
+
+        function drawPixelText(str, sx, sy, scale, color){
+          const gap = 1;
+          let x = sx;
+          for(const ch of String(str)){
+            const pattern = PIXEL_FONT[ch] || PIXEL_FONT['0'];
+            for(let row=0; row<pattern.length; row++){
+              const bits = pattern[row];
+              for(let col=0; col<8; col++){
+                if((bits >> (7-col)) & 1){
+                  ctx.fillStyle = color;
+                  ctx.fillRect(x + col*scale, sy + row*scale, scale, scale);
+                }
+              }
+            }
+            x += (8*scale) + gap*scale;
+          }
+        }
+
         // draw reveal overlay when revealT>0
         function drawReveal(){
           if(revealT <= 0) return;
           // ease and progress
           revealT += 0.02;
           const p = Math.min(1, revealT);
-          // darken background
+          // darken background with easing
           ctx.fillStyle = `rgba(10,10,10,${0.6 * p})`;
           ctx.fillRect(0,0,VW,VH);
-          // draw large pixel text for key
+          // draw large pixel text for key in center
           const text = '1030';
+          const scale = 12;
+          const totalW = text.length * (8*scale) + (text.length-1)*scale;
+          const sx = Math.floor((VW - totalW)/2);
+          const sy = Math.floor(VH/2 - (7*scale)/2 - 20);
+          drawPixelText(text, sx, sy, scale, '#ffffff');
+          // small caption
           ctx.fillStyle = '#fff';
-          ctx.font = `${48 + Math.floor(40*p)}px monospace`;
-          ctx.textAlign = 'center';
-          ctx.fillText('Dropped key: ' + text, VW/2, VH/2);
+          ctx.font = '20px monospace'; ctx.textAlign = 'center';
+          ctx.fillText('Dropped key', VW/2, sy - 10);
           // after fully revealed, show overlay button
           if(p >= 1){ document.getElementById('completeOverlay').style.display = 'flex'; revealT = 0; }
         }
