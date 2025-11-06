@@ -5,56 +5,120 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Level 1 — 黑白像素（Side-scroller）</title>
     <style>
-  html,body{height:100%;margin:0;background:#111;color:#fff;overflow:hidden}
+  @font-face {
+    font-family: 'PixelFont';
+    src: url('./pixel-font.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  html,body{height:100%;margin:0;background:#111;color:#fff;overflow:hidden;font-family:'PixelFont', 'Courier New', monospace}
   /* center the canvas and constrain its displayed size so it never overflows */
   canvas{image-rendering:pixelated;display:block;background:#e9e9e9;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-width:100%;max-height:100%;box-shadow:0 0 0 1px rgba(0,0,0,0.1)}
-      .overlay{position:fixed;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center}
-      .msg{background:#fff;padding:18px;border:4px solid #000;color:#000}
-      .hint{position:fixed;left:12px;top:12px;color:#ccc;font-family:monospace}
-      .mute{position:fixed;right:12px;top:12px;background:rgba(0,0,0,0.5);color:#fff;padding:6px 10px;border-radius:6px;cursor:pointer;font-family:monospace}
+      .overlay{position:fixed;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85)}
+      .msg{
+        background:#2a2a2a;
+        padding:40px 50px;
+        border:4px solid #ffffff;
+        color:#f0f0f0;
+        border-radius:0;
+        font-family:'PixelFont', 'Courier New', monospace;
+        box-shadow:0 8px 0 #000, 8px 0 0 #000, -8px 0 0 #000, 0 -8px 0 #000;
+        image-rendering:pixelated;
+      }
+      .msg h2{
+        font-size:36px;
+        font-weight:700;
+        letter-spacing:4px;
+        margin:0 0 20px 0;
+        text-shadow:3px 3px 0 #000;
+      }
+      .msg p{
+        font-size:16px;
+        letter-spacing:1px;
+        margin:10px 0;
+      }
+      .msg button{
+        background:#ffffff;
+        color:#000000;
+        border:3px solid #000000;
+        padding:10px 28px;
+        font-size:16px;
+        font-family:'PixelFont', 'Courier New', monospace;
+        letter-spacing:3px;
+        cursor:pointer;
+        border-radius:0;
+        font-weight:700;
+        box-shadow:4px 4px 0 #000;
+        transition:all 100ms ease;
+      }
+      .msg button:hover{
+        background:#e0e0e0;
+        box-shadow:2px 2px 0 #000;
+        transform:translate(2px, 2px);
+      }
+      .msg button:active{
+        background:#d0d0d0;
+        box-shadow:0 0 0 #000;
+        transform:translate(4px, 4px);
+      }
+      .hint{
+        display:none; /* Hide HTML hint, will draw on canvas instead */
+      }
+      .mute{
+        display:none; /* Hide HTML mute, will draw restart button on canvas instead */
+      }
       /* mobile controls */
       .controls{position:fixed;left:12px;bottom:12px;display:flex;gap:8px}
-      .btn{width:64px;height:64px;border-radius:8px;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-family:monospace;user-select:none}
-      .startOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);z-index:20;backdrop-filter:blur(4px)}
+      .btn{width:64px;height:64px;border-radius:8px;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-family:'PixelFont', 'Courier New', monospace;user-select:none}
+      .startOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);z-index:20}
       .startBox{
-        background:transparent;
-        color:rgba(240,240,240,0.9);
+        background:#2a2a2a;
+        color:#f0f0f0;
         padding:40px 60px;
-        border-radius:12px;
-        border:2px solid rgba(255,255,255,0.2);
+        border-radius:0;
+        border:4px solid #ffffff;
         text-align:center;
-        font-family:'Courier New', 'Courier', monospace;
-        box-shadow:0 0 40px rgba(0,0,0,0.5);
+        font-family:'PixelFont', 'Courier New', monospace;
+        box-shadow:0 8px 0 #000, 8px 0 0 #000, -8px 0 0 #000, 0 -8px 0 #000;
+        image-rendering:pixelated;
       }
       .startBox h2{
         font-size:48px;
-        font-weight:300;
+        font-weight:700;
         letter-spacing:8px;
         margin:0 0 30px 0;
-        text-shadow:0 0 20px rgba(255,255,255,0.3);
-        filter:blur(0.5px);
+        text-shadow:4px 4px 0 #000;
+        filter:none;
       }
       .startBox button{
-        background:rgba(255,255,255,0.1);
-        color:rgba(240,240,240,0.9);
-        border:1px solid rgba(255,255,255,0.3);
+        background:#ffffff;
+        color:#000000;
+        border:3px solid #000000;
         padding:12px 32px;
         font-size:18px;
-        font-family:'Courier New', 'Courier', monospace;
+        font-family:'PixelFont', 'Courier New', monospace;
         letter-spacing:4px;
         cursor:pointer;
-        border-radius:4px;
-        transition:all 300ms ease;
-        text-shadow:0 0 10px rgba(255,255,255,0.2);
+        border-radius:0;
+        transition:all 100ms ease;
+        text-shadow:none;
+        font-weight:700;
+        box-shadow:4px 4px 0 #000;
       }
       .startBox button:hover{
-        background:rgba(255,255,255,0.2);
-        box-shadow:0 0 20px rgba(255,255,255,0.3);
+        background:#e0e0e0;
+        box-shadow:2px 2px 0 #000;
+        transform:translate(2px, 2px);
+      }
+      .startBox button:active{
+        background:#d0d0d0;
+        box-shadow:0 0 0 #000;
+        transform:translate(4px, 4px);
       }
       /* narrative card - mysterious floating text */
   .narrative{position:fixed;left:50%;top:8%;transform:translateX(-50%);z-index:25;pointer-events:none;opacity:0;transition:opacity 800ms ease;max-width:90vw}
   .narrative.show{opacity:1}
-  /* floating translucent text - larger, blurred, mysterious */
+  /* floating translucent text - smaller, blurred, mysterious */
   .narrative .card{
     background:transparent;
     color:rgba(40,40,40,0.7);
@@ -62,11 +126,11 @@
     border-radius:8px;
     border:0;
     display:block;
-    font-family:'Courier New', 'Courier', monospace;
-    font-size:36px;
+    font-family:'PixelFont', 'Courier New', monospace;
+    font-size:28px;
     font-weight:300;
-    letter-spacing:3px;
-    text-shadow:0 0 20px rgba(0,0,0,0.4), 0 0 40px rgba(0,0,0,0.2);
+    letter-spacing:2px;
+    text-shadow:0 0 15px rgba(0,0,0,0.4), 0 0 30px rgba(0,0,0,0.2);
     filter:blur(0.8px);
     white-space:nowrap;
     text-align:center;
@@ -84,7 +148,13 @@
   </head>
   <body>
     <canvas id="game"></canvas>
-    <div class="hint">控制：← → / A D，跳跃：↑ / W / 空格 — 收集全部白色胶囊</div>
+    <div class="hint">
+      <div style="font-weight:700;margin-bottom:8px;font-size:16px;">CONTROLS</div>
+      <div>← → / A D : Move</div>
+      <div>↑ / W / Space : Jump</div>
+      <div>Shift : Run</div>
+      <div style="margin-top:8px;font-size:12px;opacity:0.8;">Collect all coins</div>
+    </div>
     <div id="muteBtn" class="mute">Mute</div>
     <div class="controls" id="touchControls" style="display:none">
       <div id="leftBtn" class="btn">◀</div>
@@ -95,9 +165,10 @@
     <div id="startOverlay" class="startOverlay">
       <div class="startBox">
         <h2>S P L I C I N G</h2>
-        <p style="font-size:18px;letter-spacing:2px;opacity:0.8;margin:20px 0">Level 1</p>
-        <p style="font-size:14px;letter-spacing:2px;opacity:0.6;margin:10px 0">← → or A D to move · ↑ W Space to jump</p>
-        <p style="font-size:14px;letter-spacing:2px;opacity:0.6;margin:10px 0">Hold Shift to run</p>
+        <p style="font-size:18px;letter-spacing:2px;margin:20px 0;font-weight:700">Level 1</p>
+        <p style="font-size:14px;letter-spacing:2px;margin:10px 0">← → or A D to move</p>
+        <p style="font-size:14px;letter-spacing:2px;margin:10px 0">↑ W Space to jump</p>
+        <p style="font-size:14px;letter-spacing:2px;margin:10px 0">Hold Shift to run</p>
         <button id="startBtn">B E G I N</button>
       </div>
     </div>
@@ -107,10 +178,11 @@
 
     <div id="completeOverlay" class="overlay" style="display:none">
       <div class="msg">
-        <h2>已完成 Level 1</h2>
-        <p>掉落 key: <strong>1030</strong></p>
-        <p>回到主界面或在主页面输入该 key 以解锁下一关。</p>
-        <div style="text-align:right;margin-top:8px"><button id="overlayClose">继续</button></div>
+        <h2>LEVEL 1 COMPLETE</h2>
+        <p style="font-size:18px;margin:15px 0">Key: <strong style="font-size:24px">1030</strong></p>
+        <p style="font-size:14px;margin:15px 0">Return to main menu and enter this key</p>
+        <p style="font-size:14px;margin:15px 0">to unlock the next level</p>
+        <div style="text-align:center;margin-top:25px"><button id="overlayClose">CONTINUE</button></div>
       </div>
     </div>
 
@@ -183,9 +255,9 @@
         ];
 
         const collectibles = [
-          {x: 1600, y: 0, w:8, h:8, collected:false},
-          {x: 3200, y: 0, w:8, h:8, collected:false},
-          {x: 5200, y: 0, w:8, h:8, collected:false}
+          {x: 2400, y: 0, w:8, h:8, collected:false},
+          {x: 5600, y: 0, w:8, h:8, collected:false},
+          {x: 8800, y: 0, w:8, h:8, collected:false}
         ];
 
         // Update platform and collectible Y positions when background loads
@@ -383,22 +455,29 @@
           // clear
           ctx.fillStyle = '#f4f4f4'; ctx.fillRect(0,0,VW,VH);
 
-          // Draw the composite background as a FIXED backdrop (no parallax scrolling)
+          // Draw the composite background with parallax scrolling and looping
           if(compositeBackground){
             const bgW = compositeBackground.width;
             const bgH = compositeBackground.height;
             
             // Scale background to fill screen height perfectly
             const bgScale = VH / bgH; // Scale to exactly fit screen height
-            const scaledW = bgW * bgScale;
+            const scaledW = Math.ceil(bgW * bgScale); // Use ceil to prevent gaps
             const scaledH = VH; // Fill screen height exactly
             
-            // Center the background horizontally, FIXED (no scrolling)
-            const bgX = (VW - scaledW) / 2;
+            // Calculate background position with camera (moves with player)
+            const bgX = -camX; // Background moves with camera
             const bgY = 0; // Anchor to top of screen
             
-            // Draw the background FIXED (no parallax, no camera movement)
-            ctx.drawImage(compositeBackground, bgX, bgY, scaledW, scaledH);
+            // Draw the background in a loop to cover the entire visible area
+            // Calculate the starting position for seamless looping
+            const offset = bgX % scaledW;
+            const startX = Math.floor(offset);
+            
+            // Draw enough tiles to cover the screen (with extra overlap to prevent gaps)
+            for(let x = startX - scaledW; x < VW + scaledW; x += scaledW){
+              ctx.drawImage(compositeBackground, Math.floor(x), bgY, scaledW + 1, scaledH);
+            }
             
             // Update the actual ground level based on where player should walk
             // The ground layer is at approximately 85% from the top of the background image
@@ -419,21 +498,60 @@
             ctx.fillRect(0, groundY, VW, VH-groundY);
           }
 
-          // draw collectibles (use smile.png image)
+          // draw collectibles (use spinning coin animation with glow)
           collectibles.forEach(c=>{
             if(!c.collected){
               const cx = Math.round(c.x - camX);
               const cy = Math.round(c.y);
               
-              if(smileImage){
-                // Draw smile.png image
-                const size = 48; // Size of the smile icon (adjust as needed)
+              if(coinImage){
+                const size = 48; // Size of the coin icon
+                
+                // Draw layered glow effect (background halo) - white glow
                 ctx.save();
-                // Add a subtle glow effect
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = 'rgba(255,255,255,0.6)';
-                ctx.drawImage(smileImage, cx - size/2, cy - size/2, size, size);
+                
+                // Outer glow (largest)
+                ctx.shadowBlur = 40;
+                ctx.shadowColor = 'rgba(255,255,255,0.8)';
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.beginPath();
+                ctx.arc(cx, cy, size * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Middle glow
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = 'rgba(255,255,255,0.9)';
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.beginPath();
+                ctx.arc(cx, cy, size * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Inner bright glow
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = 'rgba(255,255,255,1)';
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.beginPath();
+                ctx.arc(cx, cy, size * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+                
                 ctx.restore();
+                
+                // Draw the animated spinning coin (8 frames)
+                ctx.save();
+                const totalFrames = 8;
+                const frameIndex = Math.floor((performance.now() / 150) % totalFrames); // 150ms per frame (slower)
+                const frameWidth = coinImage.width / totalFrames;
+                const frameHeight = coinImage.height;
+                
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = 'rgba(255,255,255,0.8)';
+                ctx.drawImage(
+                  coinImage, 
+                  frameIndex * frameWidth, 0, frameWidth, frameHeight,  // source
+                  cx - size/2, cy - size/2, size, size  // destination
+                );
+                ctx.restore();
+                
               } else {
                 // Fallback: draw white circle if image not loaded
                 const r = Math.round(8 * VISUAL_SCALE);
@@ -456,6 +574,38 @@
             scenery.forEach(s=>{
               const sx = Math.round(s.x - camX);
               
+              // Draw indicator light circle if this scenery has narrative text
+              if(s.text && s.text.trim().length > 0){
+                const now = performance.now();
+                const pulse = Math.sin(now * 0.003) * 0.3 + 0.7; // Pulsing effect 0.4-1.0
+                
+                // Position the light circle at ground level below the scenery
+                const lightY = (window.VISUAL_GROUND_Y || groundY) + (s.yOffset || 0);
+                
+                ctx.save();
+                ctx.globalAlpha = pulse * 0.6;
+                
+                // Outer glow
+                ctx.fillStyle = 'rgba(255, 255, 200, 0.3)';
+                ctx.beginPath();
+                ctx.arc(sx, lightY, 32, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Middle ring
+                ctx.fillStyle = 'rgba(255, 255, 220, 0.5)';
+                ctx.beginPath();
+                ctx.arc(sx, lightY, 20, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Inner bright core
+                ctx.fillStyle = 'rgba(255, 255, 240, 0.8)';
+                ctx.beginPath();
+                ctx.arc(sx, lightY, 10, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+              }
+              
               // First priority: check for loaded scenery assets
               let assetImg = null;
               if(s.type === 'house' && sceneryAssets.house) assetImg = sceneryAssets.house;
@@ -469,7 +619,8 @@
                 const drawW = assetImg.width * scale;
                 const drawH = assetImg.height * scale;
                 const drawX = sx - drawW/2;
-                const drawY = (typeof s.y === 'number') ? s.y : (window.VISUAL_GROUND_Y || groundY) - drawH;
+                const baseY = (typeof s.y === 'number') ? s.y : (window.VISUAL_GROUND_Y || groundY) - drawH;
+                const drawY = baseY + (s.yOffset || 0); // Apply vertical offset
                 ctx.drawImage(assetImg, drawX, drawY, drawW, drawH);
                 return;
               }
@@ -627,6 +778,71 @@
           }
           */
 
+          // HUD: Draw controls hint box (left-bottom corner)
+          ctx.save();
+          const hintX = 12;
+          const hintY = VH - 140;
+          const hintW = 180;
+          const hintH = 128;
+          
+          // Draw hint box background
+          ctx.fillStyle = 'rgba(0,0,0,0.8)';
+          ctx.fillRect(hintX, hintY, hintW, hintH);
+          
+          // Draw hint box border
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(hintX, hintY, hintW, hintH);
+          
+          // Draw hint box shadow
+          ctx.fillStyle = 'rgba(0,0,0,1)';
+          ctx.fillRect(hintX, hintY + hintH, hintW, 4);
+          ctx.fillRect(hintX + hintW, hintY, 4, hintH + 4);
+          
+          // Draw hint text
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 16px "PixelFont", "Courier New", monospace';
+          ctx.fillText('CONTROLS', hintX + 12, hintY + 24);
+          
+          ctx.font = '14px "PixelFont", "Courier New", monospace';
+          ctx.fillText('← → / A D : Move', hintX + 12, hintY + 48);
+          ctx.fillText('↑ / W / Space : Jump', hintX + 12, hintY + 68);
+          ctx.fillText('Shift : Run', hintX + 12, hintY + 88);
+          
+          ctx.font = '12px "PixelFont", "Courier New", monospace';
+          ctx.fillStyle = 'rgba(255,255,255,0.8)';
+          ctx.fillText('Collect all coins', hintX + 12, hintY + 110);
+          ctx.restore();
+          
+          // HUD: Draw RESTART button (right-top corner)
+          ctx.save();
+          const btnX = VW - 120;
+          const btnY = 12;
+          const btnW = 108;
+          const btnH = 36;
+          
+          // Draw button background
+          ctx.fillStyle = 'rgba(0,0,0,0.8)';
+          ctx.fillRect(btnX, btnY, btnW, btnH);
+          
+          // Draw button border
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(btnX, btnY, btnW, btnH);
+          
+          // Draw button shadow
+          ctx.fillStyle = 'rgba(0,0,0,1)';
+          ctx.fillRect(btnX, btnY + btnH, btnW, 4);
+          ctx.fillRect(btnX + btnW, btnY, 4, btnH + 4);
+          
+          // Draw button text
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 16px "PixelFont", "Courier New", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('RESTART', btnX + btnW/2, btnY + 24);
+          ctx.textAlign = 'left';
+          ctx.restore();
+          
           // HUD: small label & collectibles (subtle)
           const collectedCount = collectibles.filter(c=>c.collected).length;
           ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.font = '14px monospace'; ctx.fillText('Collected: ' + collectedCount + ' / ' + COLLECT_TARGET, 12, 26);
@@ -819,9 +1035,23 @@
         ];
         let evIndex = 0; let evTimer = null; let currentEvent = null;
 
-        // scenic decorations and proximity triggers (cleared - ready to add new items)
+        // scenic decorations and proximity triggers
         const scenery = [
-          // Add scenery items here with format: {x: position, type: 'house'/'cow_tree'/etc, scale: number, text: 'description'}
+          // Early section - introduce the scene
+          {x: 800, type: 'item6', scale: 0.25, yOffset: 50, text: 'A small stone rests quietly in the grass'},
+          {x: 1400, type: 'cow_tree', scale: 0.3, yOffset: 80, text: 'A cow grazes peacefully under the old tree'},
+          
+          // Mid section - around first collectible (x=2400)
+          {x: 3000, type: 'house', scale: 0.35, yOffset: 100, text: 'An abandoned house stands alone in silence'},
+          
+          // Mid-late section - around second collectible (x=5600)
+          {x: 4200, type: 'cow_tree', scale: 0.3, yOffset: 80, text: 'Tree shadows drift past whispers in the distance'},
+          {x: 5000, type: 'item6', scale: 0.25, yOffset: 50, text: 'Weathered rocks mark the forgotten path'},
+          
+          // Late section - around third collectible (x=8800)
+          {x: 7400, type: 'house', scale: 0.35, yOffset: 100, text: 'Time has worn these walls to memory'},
+          {x: 8200, type: 'cow_tree', scale: 0.3, yOffset: 80, text: 'The cow and tree wait together unchanged'},
+          {x: 9400, type: 'item6', scale: 0.25, yOffset: 50, text: 'Small things left behind by travelers'}
         ];
         const sceneryTriggered = new Set();
         // inline SVG sprites (grayscale) for richer scenery without external assets
@@ -931,9 +1161,9 @@
         // Load player run spritesheet
         loadImage('./assets/player/Run.png', (img)=>{ if(img) playerRunSheet = img; });
 
-        // Load collectible image (smile.png)
-        let smileImage = null;
-        loadImage('./smile.png', (img)=>{ if(img) smileImage = img; });
+        // Load collectible image (spinning coin spritesheet)
+        let coinImage = null;
+        loadImage('./Spinning Coin.png', (img)=>{ if(img) coinImage = img; });
 
         // Load scenery assets (foreground decorations)
         const sceneryAssets = {
@@ -960,6 +1190,13 @@
 
         function showNarrative(txt, dur){
           const el = document.getElementById('narrative'); const content = document.getElementById('narrativeText');
+          
+          // Clear any existing narrative timer
+          if(narrativeTimer) {
+            clearTimeout(narrativeTimer);
+            narrativeTimer = null;
+          }
+          
           if(!txt){ el.classList.remove('show'); narrativeSpans = []; setTimeout(()=>{ el.style.display = 'none'; }, 420); return; }
           
           // Split into words (not characters) for independent floating
@@ -978,7 +1215,7 @@
             
             // Store random offset for this word
             wordSpan.dataset.offset = String(Math.random() * 2 * Math.PI);
-            wordSpan.dataset.amplitude = String(15 + Math.random() * 25); // Random 15-40px amplitude
+            wordSpan.dataset.amplitude = String(8 + Math.random() * 12); // Random 8-20px amplitude (shorter float)
             wordSpan.dataset.speed = String(0.8 + Math.random() * 0.6); // Random speed 0.8-1.4
             
             wrap.appendChild(wordSpan);
@@ -997,11 +1234,14 @@
           narrativeSpans = Array.from(wrap.querySelectorAll('.word'));
           narrativeStart = performance.now();
           
-          if(dur) setTimeout(()=>{ 
-            el.classList.remove('show'); 
-            narrativeSpans = []; 
-            setTimeout(()=>{ el.style.display = 'none'; }, 420); 
-          }, dur);
+          if(dur) {
+            narrativeTimer = setTimeout(()=>{ 
+              el.classList.remove('show'); 
+              narrativeSpans = []; 
+              narrativeTimer = null;
+              setTimeout(()=>{ el.style.display = 'none'; }, 420); 
+            }, dur);
+          }
         }
 
         function startEventSequence(){ evIndex = 0; runNextEvent(); }
@@ -1035,6 +1275,7 @@
         // narrative animation state
         let narrativeSpans = [];
         let narrativeStart = 0;
+        let narrativeTimer = null; // Track narrative timeout to prevent duplicates
         function updateNarrativeAnim(now){
           if(!narrativeSpans || narrativeSpans.length===0) return;
           const t = (now - narrativeStart) / 1000;
@@ -1095,8 +1336,36 @@
           jumpBtn.addEventListener('pointerdown', ()=>{ if(player.onGround){ player.vy = JUMP_V; player.onGround = false; playStep(); } });
         }
 
-  // allow click/tap on canvas to step forward briefly (mobile friendly)
-  canvas.addEventListener('pointerdown', (e)=>{ if(controlMode === 'player'){ keys['ArrowRight'] = true; setTimeout(()=>{ keys['ArrowRight'] = false; }, 200); } else { /* in auto mode, minor nudge */ player.x += 8; } });
+  // Canvas click handler for RESTART button and movement
+  canvas.addEventListener('pointerdown', (e)=>{ 
+    // Get canvas bounding rect to calculate click position
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = VW / rect.width;
+    const scaleY = VH / rect.height;
+    const clickX = (e.clientX - rect.left) * scaleX;
+    const clickY = (e.clientY - rect.top) * scaleY;
+    
+    // Check if clicked on RESTART button (right-top corner)
+    const btnX = VW - 120;
+    const btnY = 12;
+    const btnW = 108;
+    const btnH = 36;
+    
+    if(clickX >= btnX && clickX <= btnX + btnW && clickY >= btnY && clickY <= btnY + btnH){
+      // Restart the game
+      window.location.reload();
+      return;
+    }
+    
+    // Original movement code
+    if(controlMode === 'player'){ 
+      keys['ArrowRight'] = true; 
+      setTimeout(()=>{ keys['ArrowRight'] = false; }, 200); 
+    } else { 
+      /* in auto mode, minor nudge */ 
+      player.x += 8; 
+    } 
+  });
 
   // don't start until user presses start
       })();
