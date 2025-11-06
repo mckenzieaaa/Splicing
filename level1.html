@@ -390,19 +390,28 @@
           // draw player at center-ish
           const px = Math.round(player.x - camX);
           const py = Math.round(player.y);
-          // subtle soft shadow under player (no block)
+          
+          // Draw collision box for debugging (small rectangle showing actual hitbox)
+          ctx.save();
+          ctx.globalAlpha = 0.3;
+          ctx.fillStyle = '#ff0000';
+          ctx.fillRect(px, py, player.w * PHYS_SCALE, player.h * PHYS_SCALE);
+          ctx.restore();
+          
+          // subtle soft shadow under player collision box
           ctx.save();
           ctx.globalAlpha = 0.12;
           ctx.fillStyle = '#000';
           const shW = 10 * SPRITE_DRAW_SCALE;
           const shH = 3 * SPRITE_DRAW_SCALE;
           ctx.beginPath();
-          ctx.ellipse(px + (player.w*SPRITE_DRAW_SCALE)/2, groundY + 6, shW, shH, 0, 0, Math.PI*2);
+          ctx.ellipse(px + (player.w*PHYS_SCALE)/2, py + player.h * PHYS_SCALE + 2, shW, shH, 0, 0, Math.PI*2);
           ctx.fill();
           ctx.restore();
 
           // draw player sprite (use loaded spritesheet if available, else fallback to hardcoded)
-          const offsetY = -240; // Move sprite up 240px from physics position (applies to all rendering)
+          const offsetX = -30; // Move sprite left 30px
+          const offsetY = -260; // Move sprite up 260px from physics position (applies to all rendering)
           
           if(playerWalkSheet && playerIdleSheet){
             // Use loaded sprite sheets
@@ -417,9 +426,9 @@
               ctx.save();
               if(player.dir === -1){
                 ctx.scale(-1, 1);
-                ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, -px - dw, py + offsetY, dw, dh);
+                ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, -px - dw + offsetX, py + offsetY, dw, dh);
               }else{
-                ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, px, py + offsetY, dw, dh);
+                ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, px + offsetX, py + offsetY, dw, dh);
               }
               ctx.restore();
             }else{
@@ -433,9 +442,9 @@
               ctx.save();
               if(player.dir === -1){
                 ctx.scale(-1, 1);
-                ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, -px - dw, py + offsetY, dw, dh);
+                ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, -px - dw + offsetX, py + offsetY, dw, dh);
               }else{
-                ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, px, py + offsetY, dw, dh);
+                ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, px + offsetX, py + offsetY, dw, dh);
               }
               ctx.restore();
             }
@@ -448,7 +457,7 @@
               for(let x=0;x<16;x++){
                 if(row[x] === '1'){
                   ctx.fillStyle = '#0a0a0a';
-                  const drawX = (player.dir === 1) ? (px + x*SPRITE_DRAW_SCALE) : (px + (15-x)*SPRITE_DRAW_SCALE);
+                  const drawX = (player.dir === 1) ? (px + offsetX + x*SPRITE_DRAW_SCALE) : (px + offsetX + (15-x)*SPRITE_DRAW_SCALE);
                   const drawY = py + offsetY + y*SPRITE_DRAW_SCALE; // Apply offsetY to fallback sprite too
                   ctx.fillRect(drawX, drawY, SPRITE_DRAW_SCALE, SPRITE_DRAW_SCALE);
                 }
@@ -669,21 +678,9 @@
         ];
         let evIndex = 0; let evTimer = null; let currentEvent = null;
 
-        // scenic decorations and proximity triggers
+        // scenic decorations and proximity triggers (cleared - ready to add new items)
         const scenery = [
-          {x: 600, type:'item6', scale:0.8, text: '远处的一些装饰物'},
-          {x: 900, type:'cow_tree', scale:1.0, text: '牛在树下休息'},
-          {x: 1400, type:'house', scale:0.9, text: '一座小房子'},
-          {x: 2000, type:'item7', scale:0.7, text: '路边的景物'},
-          {x: 2800, type:'cow_tree', scale:0.85, text: '又见到了牛和树'},
-          {x: 3600, type:'house', scale:1.0, text: '另一栋房子'},
-          {x: 4400, type:'item6', scale:0.9, text: '更多装饰'},
-          // Original SVG-based scenery items (as fallback/additional variety)
-          {x: 760, type:'tree', text: '一棵老槐，树皮有些裂痕。'},
-          {x: 1960, type:'bench', text: '长椅上刻着模糊的名字。'},
-          {x: 3000, type:'building', text: '远处有一栋低矮的屋子，窗里没有人。'},
-          {x: 4600, type:'sign', text: '路牌指向没有名字的村庄。'},
-          {x: 6100, type:'lamp', text: '旧路灯还在，夜里会亮。'}
+          // Add scenery items here with format: {x: position, type: 'house'/'cow_tree'/etc, scale: number, text: 'description'}
         ];
         const sceneryTriggered = new Set();
         // inline SVG sprites (grayscale) for richer scenery without external assets
