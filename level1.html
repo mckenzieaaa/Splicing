@@ -192,21 +192,12 @@
           const isRunning = shift && (left || right);
           const speed = isRunning ? 240 : 140; // Run speed vs walk speed
 
-          if(left){ 
-            player.vx = -speed; 
-            player.dir = -1; 
+          // Update player movement state
+          if(left || right){ 
+            player.vx = left ? -speed : speed;
+            player.dir = left ? -1 : 1;
             player.anim = 1;
-            // Only update running state, don't reset it rapidly
-            if(isRunning && !player.running) player.running = true;
-            else if(!isRunning && player.running) player.running = false;
-          }
-          else if(right){ 
-            player.vx = speed; 
-            player.dir = 1; 
-            player.anim = 1;
-            // Only update running state, don't reset it rapidly
-            if(isRunning && !player.running) player.running = true;
-            else if(!isRunning && player.running) player.running = false;
+            player.running = isRunning;
           }
           else { 
             player.vx = 0; 
@@ -414,13 +405,11 @@
           const px = Math.round(player.x - camX);
           const py = Math.round(player.y);
           
-          // Draw collision box for debugging (positioned to match sprite feet)
-          // Collision box should be at the bottom of the sprite
-          const collisionBoxY = py + offsetY + (16 * 3) - (player.h * PHYS_SCALE); // Align to sprite feet
+          // Draw collision box for debugging (small rectangle showing actual hitbox)
           ctx.save();
           ctx.globalAlpha = 0.3;
           ctx.fillStyle = '#ff0000';
-          ctx.fillRect(px + offsetX + 20, collisionBoxY, player.w * PHYS_SCALE, player.h * PHYS_SCALE);
+          ctx.fillRect(px, py, player.w * PHYS_SCALE, player.h * PHYS_SCALE);
           ctx.restore();
           
           // subtle soft shadow under player collision box
@@ -430,7 +419,7 @@
           const shW = 10 * SPRITE_DRAW_SCALE;
           const shH = 3 * SPRITE_DRAW_SCALE;
           ctx.beginPath();
-          ctx.ellipse(px + offsetX + 20 + (player.w*PHYS_SCALE)/2, collisionBoxY + player.h * PHYS_SCALE + 2, shW, shH, 0, 0, Math.PI*2);
+          ctx.ellipse(px + (player.w*PHYS_SCALE)/2, py + player.h * PHYS_SCALE + 2, shW, shH, 0, 0, Math.PI*2);
           ctx.fill();
           ctx.restore();
 
