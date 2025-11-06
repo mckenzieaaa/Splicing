@@ -186,10 +186,29 @@
           // input
           const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
           const right = keys['ArrowRight'] || keys['d'] || keys['D'];
+          const shift = keys['Shift'];
 
-          if(left){ player.vx = -140; player.dir = -1; player.anim = 1; }
-          else if(right){ player.vx = 140; player.dir = 1; player.anim = 1; }
-          else { player.vx = 0; player.anim = 0; }
+          // Check if running (Shift + direction)
+          const isRunning = shift && (left || right);
+          const speed = isRunning ? 240 : 140; // Run speed vs walk speed
+
+          if(left){ 
+            player.vx = -speed; 
+            player.dir = -1; 
+            player.anim = 1;
+            player.running = isRunning;
+          }
+          else if(right){ 
+            player.vx = speed; 
+            player.dir = 1; 
+            player.anim = 1;
+            player.running = isRunning;
+          }
+          else { 
+            player.vx = 0; 
+            player.anim = 0;
+            player.running = false;
+          }
 
           // (jump will be applied after collision resolves to use correct grounded state)
 
@@ -410,25 +429,27 @@
           ctx.restore();
 
           // draw player sprite (use loaded spritesheet if available, else fallback to hardcoded)
-          const offsetX = -30; // Move sprite left 30px
-          const offsetY = -260; // Move sprite up 260px from physics position (applies to all rendering)
+          const offsetX = -50; // Move sprite left 50px (30 + 20)
+          const offsetY = -280; // Move sprite up 280px from physics position (260 + 20)
           
           if(playerWalkSheet && playerIdleSheet){
             // Use loaded sprite sheets
             if(player.anim){
-              // Walking animation - 10 frames
-              const totalFrames = 10;
+              // Choose between Run and Walk animation
+              const useRun = player.running && playerRunSheet;
+              const sheet = useRun ? playerRunSheet : playerWalkSheet;
+              const totalFrames = 10; // Both Run and Walk have 10 frames
               const frameIndex = Math.floor(animTick) % totalFrames;
-              const sw = playerWalkSheet.width / totalFrames;
-              const sh = playerWalkSheet.height;
+              const sw = sheet.width / totalFrames;
+              const sh = sheet.height;
               const dw = sw * 3; // Keep player at 3x scale
               const dh = sh * 3;
               ctx.save();
               if(player.dir === -1){
                 ctx.scale(-1, 1);
-                ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, -px - dw + offsetX, py + offsetY, dw, dh);
+                ctx.drawImage(sheet, frameIndex * sw, 0, sw, sh, -px - dw + offsetX, py + offsetY, dw, dh);
               }else{
-                ctx.drawImage(playerWalkSheet, frameIndex * sw, 0, sw, sh, px + offsetX, py + offsetY, dw, dh);
+                ctx.drawImage(sheet, frameIndex * sw, 0, sw, sh, px + offsetX, py + offsetY, dw, dh);
               }
               ctx.restore();
             }else{
