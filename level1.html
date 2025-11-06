@@ -21,8 +21,9 @@
   .narrative{position:fixed;left:50%;top:8%;transform:translateX(-50%);z-index:25;pointer-events:none;opacity:0;transition:opacity 400ms ease}
   .narrative.show{opacity:1}
   /* floating translucent text - no box */
-  .narrative .card{background:transparent;color:rgba(255,255,255,0.92);padding:6px 12px;border-radius:6px;border:0;display:inline-block;font-family:monospace;font-size:20px;text-shadow:0 2px 6px rgba(0,0,0,0.35)}
-  .narrative.show .card{animation:floaty 4s ease-in-out infinite}
+  .narrative .card{background:transparent;color:rgba(28,28,28,0.96);padding:6px 12px;border-radius:6px;border:0;display:inline-block;font-family:monospace;font-size:20px;text-shadow:0 2px 6px rgba(255,255,255,0.03)}
+  .narrative.show .card{animation:floaty 6s ease-in-out infinite}
+  /* per-character wave will be applied via JS for a gentle narrative rise/fall */
   @keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-8px)}100%{transform:translateY(0)}}
       .fadeScreen{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 600ms ease;z-index:30}
     </style>
@@ -284,25 +285,42 @@
           if(typeof scenery !== 'undefined'){
             scenery.forEach(s=>{
               const sx = Math.round(s.x - camX);
+              // if a sprite image is available, draw it centered above s.y
+              const img = SPRITE_IMAGES[s.type];
+              if(img){
+                const iw = img.width; const ih = img.height;
+                const drawW = Math.round(iw * 0.7);
+                const drawH = Math.round(ih * 0.7);
+                ctx.drawImage(img, sx - Math.round(drawW/2), s.y - drawH + 8, drawW, drawH);
+                return;
+              }
+              // fallback: richer procedural drawing
               if(s.type === 'tree'){
-                // trunk
-                ctx.fillStyle = '#8b6b3a'; ctx.fillRect(sx+6, s.y+8, 4, 12);
-                // foliage blocks
-                ctx.fillStyle = '#cfcfcf'; ctx.fillRect(sx, s.y, 20, 16);
-                ctx.fillStyle = '#bfbfbf'; ctx.fillRect(sx+2, s.y-8, 16, 12);
+                // trunk with texture
+                ctx.fillStyle = '#8b6b3a';
+                for(let i=0;i<3;i++) ctx.fillRect(sx+6+i, s.y+8, 2, 12);
+                // layered foliage
+                ctx.fillStyle = '#d9d9d9'; ctx.fillRect(sx-6, s.y-6, 28, 12);
+                ctx.fillStyle = '#cfcfcf'; ctx.fillRect(sx-10, s.y-14, 36, 12);
+                // add some rough shading
+                ctx.fillStyle = '#bdbdbd'; ctx.fillRect(sx-2, s.y-2, 8, 6);
               }else if(s.type === 'bench'){
-                ctx.fillStyle = '#b3b3b3'; ctx.fillRect(sx, s.y+6, 22, 6);
-                ctx.fillStyle = '#8b8b8b'; ctx.fillRect(sx, s.y+2, 4, 6); ctx.fillRect(sx+18, s.y+2, 4, 6);
+                ctx.fillStyle = '#cfcfcf'; ctx.fillRect(sx-10, s.y+4, 40, 8);
+                ctx.fillStyle = '#9f9f9f'; ctx.fillRect(sx-10, s.y+8, 6, 6); ctx.fillRect(sx+24, s.y+8, 6, 6);
               }else if(s.type === 'building'){
-                ctx.fillStyle = '#e6e6e6'; ctx.fillRect(sx, s.y, 60, 64);
-                ctx.fillStyle = '#cfcfcf'; ctx.fillRect(sx+8, s.y+10, 12, 12);
-                ctx.fillRect(sx+36, s.y+10, 12, 12);
+                // multi-layered building with roof and windows
+                ctx.fillStyle = '#e6e6e6'; ctx.fillRect(sx-30, s.y-64, 120, 64);
+                ctx.fillStyle = '#d0d0d0'; ctx.fillRect(sx-18, s.y-48, 36, 28);
+                ctx.fillRect(sx+30, s.y-48, 36, 28);
+                ctx.fillStyle = '#c0c0c0';
+                for(let pl=0;pl<6;pl++) ctx.fillRect(sx-28, s.y-20 + pl*6, 96, 2);
               }else if(s.type === 'sign'){
-                ctx.fillStyle = '#bfbfbf'; ctx.fillRect(sx, s.y, 6, 20);
-                ctx.fillStyle = '#ffffff'; ctx.fillRect(sx+6, s.y+4, 36, 8);
+                ctx.fillStyle = '#bfbfbf'; ctx.fillRect(sx, s.y-16, 6, 24);
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(sx+6, s.y-10, 44, 12);
+                ctx.fillStyle = '#d0d0d0'; ctx.fillRect(sx+10, s.y-8, 28, 6);
               }else if(s.type === 'lamp'){
-                ctx.fillStyle = '#8b8b8b'; ctx.fillRect(sx+8, s.y, 6, 40);
-                ctx.fillStyle = '#fff6d6'; ctx.fillRect(sx+6, s.y-8, 10, 8);
+                ctx.fillStyle = '#8b8b8b'; ctx.fillRect(sx+8, s.y-36, 6, 40);
+                ctx.fillStyle = '#fff6d6'; ctx.fillRect(sx+2, s.y-46, 20, 12);
               }
             });
           }
@@ -345,6 +363,7 @@
           animTick += (player.anim ? dt/140 : dt/800); // faster when walking
           update(dt);
           draw();
+          updateNarrativeAnim(now);
           if(running) requestAnimationFrame(loop);
           else last = performance.now();
         }
@@ -508,12 +527,100 @@
           {x: 3050, y: groundY - 56, type:'lamp', text: '旧路灯还在，夜里会亮。'}
         ];
         const sceneryTriggered = new Set();
+        // inline SVG sprites (grayscale) for richer scenery without external assets
+        const SPRITE_IMAGES = {};
+        (function(){
+          const makeURI = s => 'data:image/svg+xml;utf8,' + encodeURIComponent(s);
+
+          // tree svg
+          const treeSVG = `
+            <svg xmlns='http://www.w3.org/2000/svg' width='180' height='160' viewBox='0 0 180 160'>
+              <rect width='100%' height='100%' fill='none'/>
+              <g fill='#dcdcdc'>
+                <ellipse cx='90' cy='50' rx='70' ry='34' />
+                <ellipse cx='60' cy='34' rx='40' ry='26' />
+                <ellipse cx='120' cy='34' rx='40' ry='26' />
+              </g>
+              <g fill='#8b6b3a'>
+                <rect x='82' y='70' width='16' height='68' rx='3'/>
+              </g>
+              <g fill='#bfbfbf' opacity='0.9'>
+                <ellipse cx='90' cy='40' rx='20' ry='12'/>
+              </g>
+            </svg>
+          `;
+
+          // bench svg
+          const benchSVG = `
+            <svg xmlns='http://www.w3.org/2000/svg' width='120' height='64' viewBox='0 0 120 64'>
+              <rect width='120' height='64' fill='none'/>
+              <rect x='6' y='26' width='108' height='12' fill='#e6e6e6' rx='3'/>
+              <rect x='10' y='36' width='8' height='18' fill='#9f9f9f'/>
+              <rect x='102' y='36' width='8' height='18' fill='#9f9f9f'/>
+              <rect x='14' y='28' width='92' height='6' fill='#cfcfcf' rx='2'/>
+            </svg>
+          `;
+
+          // building (cabin) svg
+          const buildingSVG = `
+            <svg xmlns='http://www.w3.org/2000/svg' width='300' height='160' viewBox='0 0 300 160'>
+              <rect width='100%' height='100%' fill='none'/>
+              <rect x='20' y='48' width='260' height='92' fill='#e6e6e6' rx='4'/>
+              <rect x='30' y='58' width='60' height='60' fill='#cfcfcf'/>
+              <rect x='90' y='58' width='120' height='12' fill='#dcdcdc'/>
+              <rect x='222' y='58' width='28' height='40' fill='#cfcfcf'/>
+              <rect x='90' y='82' width='120' height='12' fill='#d0d0d0'/>
+              <path d='M20 48 L150 12 L280 48 Z' fill='#d9d9d9'/>
+            </svg>
+          `;
+
+          // sign svg
+          const signSVG = `
+            <svg xmlns='http://www.w3.org/2000/svg' width='100' height='80' viewBox='0 0 100 80'>
+              <rect width='100' height='80' fill='none'/>
+              <rect x='46' y='8' width='8' height='56' fill='#bfbfbf'/>
+              <rect x='56' y='18' width='36' height='16' fill='#ffffff' rx='2'/>
+              <rect x='62' y='22' width='24' height='8' fill='#d0d0d0' rx='1'/>
+            </svg>
+          `;
+
+          // lamp svg
+          const lampSVG = `
+            <svg xmlns='http://www.w3.org/2000/svg' width='60' height='140' viewBox='0 0 60 140'>
+              <rect width='60' height='140' fill='none'/>
+              <rect x='26' y='30' width='8' height='80' fill='#8b8b8b' rx='2'/>
+              <rect x='18' y='18' width='24' height='18' fill='#fff6d6' rx='3'/>
+              <rect x='22' y='22' width='16' height='10' fill='#f7e9c8' rx='2'/>
+            </svg>
+          `;
+
+          const pairs = {tree:treeSVG, bench:benchSVG, building:buildingSVG, sign:signSVG, lamp:lampSVG};
+          Object.keys(pairs).forEach(k=>{
+            const im = new Image(); im.onload = ()=>{ SPRITE_IMAGES[k] = im; };
+            im.onerror = ()=>{ SPRITE_IMAGES[k] = null; };
+            im.src = makeURI(pairs[k]);
+          });
+        })();
 
         function showNarrative(txt, dur){
           const el = document.getElementById('narrative'); const content = document.getElementById('narrativeText');
-          if(!txt){ el.classList.remove('show'); setTimeout(()=>{ el.style.display = 'none'; }, 420); return; }
-          content.textContent = txt; el.style.display = 'block'; setTimeout(()=>{ el.classList.add('show'); }, 20);
-          if(dur) setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>{ el.style.display = 'none'; }, 420); }, dur);
+          if(!txt){ el.classList.remove('show'); narrativeSpans = []; setTimeout(()=>{ el.style.display = 'none'; }, 420); return; }
+          // split into spans so each character can float independently
+          content.innerHTML = '';
+          const wrap = document.createElement('div'); wrap.className = 'card';
+          for(let i=0;i<txt.length;i++){
+            const ch = txt[i];
+            const sp = document.createElement('span'); sp.textContent = ch;
+            sp.style.display = 'inline-block'; sp.style.transform = 'translateY(0px)'; sp.style.willChange = 'transform,opacity'; sp.style.opacity = '0.98';
+            sp.style.margin = '0 1px';
+            wrap.appendChild(sp);
+          }
+          content.appendChild(wrap);
+          el.style.display = 'block'; setTimeout(()=>{ el.classList.add('show'); }, 20);
+          // collect spans for animation
+          narrativeSpans = Array.from(wrap.querySelectorAll('span'));
+          narrativeStart = performance.now();
+          if(dur) setTimeout(()=>{ el.classList.remove('show'); narrativeSpans = []; setTimeout(()=>{ el.style.display = 'none'; }, 420); }, dur);
         }
 
         function startEventSequence(){ evIndex = 0; runNextEvent(); }
@@ -541,6 +648,23 @@
                 fadeScreenTo(0, 600, ()=>{ runNextEvent(); });
               }, ev.duration);
             });
+          }
+        }
+
+        // narrative animation state
+        let narrativeSpans = [];
+        let narrativeStart = 0;
+        function updateNarrativeAnim(now){
+          if(!narrativeSpans || narrativeSpans.length===0) return;
+          const t = (now - narrativeStart) / 1000;
+          for(let i=0;i<narrativeSpans.length;i++){
+            const sp = narrativeSpans[i];
+            const phase = i * 0.35;
+            const y = Math.sin(t*1.8 + phase) * (6 + Math.sin(t*0.6 + phase)*2);
+            sp.style.transform = `translateY(${ -y }px)`;
+            // slight opacity shift for depth
+            const o = 0.88 + 0.08 * Math.sin(t*1.4 + phase);
+            sp.style.opacity = String(o);
           }
         }
 
