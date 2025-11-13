@@ -186,6 +186,10 @@
         
         let state = loadState();
         
+        // 调试信息
+        console.log('初始状态:', state);
+        console.log('LEVELS:', LEVELS);
+        
         function render() {
             const app = document.getElementById('app');
             const body = document.body;
@@ -214,14 +218,16 @@
             let cards = '';
             state.unlocked.forEach(level => {
                 const l = LEVELS[level];
-                cards += `
-                    <div class="card">
-                        <h2>${l.num}</h2>
-                        <h3>${l.title}</h3>
-                        <p>${l.desc}</p>
-                        <a href="${l.url}">开始游戏 →</a>
-                    </div>
-                `;
+                if (l) {  // 确保关卡数据存在
+                    cards += `
+                        <div class="card">
+                            <h2>${l.num}</h2>
+                            <h3>${l.title}</h3>
+                            <p>${l.desc}</p>
+                            <a href="${l.url}">开始游戏 →</a>
+                        </div>
+                    `;
+                }
             });
             
             app.innerHTML = `
