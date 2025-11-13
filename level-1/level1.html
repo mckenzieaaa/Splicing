@@ -247,9 +247,14 @@
         ];
 
         const collectibles = [
+          {x: 1200, y: 0, w:8, h:8, collected:false},
           {x: 2400, y: 0, w:8, h:8, collected:false},
+          {x: 3800, y: 0, w:8, h:8, collected:false},
           {x: 5600, y: 0, w:8, h:8, collected:false},
-          {x: 8800, y: 0, w:8, h:8, collected:false}
+          {x: 7200, y: 0, w:8, h:8, collected:false},
+          {x: 8800, y: 0, w:8, h:8, collected:false},
+          {x: 10500, y: 0, w:8, h:8, collected:false},
+          {x: 12000, y: 0, w:8, h:8, collected:false}
         ];
 
         // Update platform and collectible Y positions when background loads
@@ -692,8 +697,8 @@
           */
 
           // draw player sprite (use loaded spritesheet if available, else fallback to hardcoded)
-          const offsetX = -50; // Move sprite left 50px (30 + 20)
-          const offsetY = -280; // Move sprite up 280px from physics position (260 + 20)
+          const offsetX = -50; // Move sprite left 50px
+          const offsetY = -280; // Move sprite up 280px from physics position
           
           if(playerWalkSheet && playerIdleSheet){
             // Use loaded sprite sheets
@@ -709,8 +714,11 @@
               const dh = sh * 3;
               ctx.save();
               if(player.dir === -1){
+                // Flip horizontally: translate to player position, scale, then offset
+                const centerX = px + (player.w * PHYS_SCALE) / 2;
+                ctx.translate(centerX, 0);
                 ctx.scale(-1, 1);
-                ctx.drawImage(sheet, frameIndex * sw, 0, sw, sh, -px - dw + offsetX, py + offsetY, dw, dh);
+                ctx.drawImage(sheet, frameIndex * sw, 0, sw, sh, -dw/2 + offsetX, py + offsetY, dw, dh);
               }else{
                 ctx.drawImage(sheet, frameIndex * sw, 0, sw, sh, px + offsetX, py + offsetY, dw, dh);
               }
@@ -725,8 +733,11 @@
               const dh = sh * 3;
               ctx.save();
               if(player.dir === -1){
+                // Flip horizontally: translate to player position, scale, then offset
+                const centerX = px + (player.w * PHYS_SCALE) / 2;
+                ctx.translate(centerX, 0);
                 ctx.scale(-1, 1);
-                ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, -px - dw + offsetX, py + offsetY, dw, dh);
+                ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, -dw/2 + offsetX, py + offsetY, dw, dh);
               }else{
                 ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, px + offsetX, py + offsetY, dw, dh);
               }
@@ -742,7 +753,7 @@
                 if(row[x] === '1'){
                   ctx.fillStyle = '#0a0a0a';
                   const drawX = (player.dir === 1) ? (px + offsetX + x*SPRITE_DRAW_SCALE) : (px + offsetX + (15-x)*SPRITE_DRAW_SCALE);
-                  const drawY = py + offsetY + y*SPRITE_DRAW_SCALE; // Apply offsetY to fallback sprite too
+                  const drawY = py + offsetY + y*SPRITE_DRAW_SCALE;
                   ctx.fillRect(drawX, drawY, SPRITE_DRAW_SCALE, SPRITE_DRAW_SCALE);
                 }
               }
