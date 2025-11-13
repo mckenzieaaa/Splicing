@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Level 2 - Hand Tracking Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <!-- Start Screen (Hidden - skip directly to camera) -->
+        <div class="modal" id="startModal" style="display: none;">
+            <div class="modal-content pixel-box start-screen">
+                <h1 class="game-title">LEVEL 2</h1>
+                <div class="coin-showcase">
+                    <canvas id="coinPreview" width="128" height="128"></canvas>
+                </div>
+                <p class="start-subtitle">Hand Tracking Collection Game</p>
+                <p class="start-instructions">Collect coins by touching targets in order</p>
+                <button class="pixel-button start-button" id="startGameButton">START GAME</button>
+            </div>
+        </div>
+        
+        <div class="header">
+            <div class="title">
+                <h1>LEVEL 2</h1>
+                <p>Hand Tracking Edition</p>
+            </div>
+        </div>
+        
+        <div class="game-wrapper">
+            <!-- Video for camera feed (hidden behind canvas) -->
+            <video id="video" autoplay playsinline></video>
+            
+            <!-- Canvas for drawing game and hand tracking -->
+            <canvas id="gameCanvas" width="1920" height="1080"></canvas>
+            
+            <div class="ui-overlay">
+                <!-- Left side coin score display -->
+                <div class="left-score-panel">
+                    <div class="left-score-title">COINS</div>
+                    <div class="left-score-content">
+                        <canvas id="leftCoin" width="48" height="48"></canvas>
+                        <span class="left-score-value" id="leftScore">0</span>
+                    </div>
+                </div>
+                
+                <div class="score-panel">
+                    <div class="score-item">
+                        <canvas id="scoreCoin" width="32" height="32"></canvas>
+                        <span class="score-value" id="score">0</span>
+                    </div>
+                    <div class="level-item">
+                        <span class="label">Level:</span>
+                        <span class="level-value" id="level">1</span>
+                    </div>
+                    <div class="timer-item">
+                        <span class="label">Time:</span>
+                        <span class="timer-value" id="timer">10</span>s
+                    </div>
+                    <div class="camera-status" id="cameraStatus">
+                        <span class="status-icon">📷</span>
+                        <span class="status-text">Starting...</span>
+                    </div>
+                </div>
+                
+                <div class="instructions">
+                    <p>👆 Touch targets in order (1→2→3→...)</p>
+                    <p>📷 Allow camera permission to start</p>
+                    <p>⌨️ Press R to restart</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal" id="levelCompleteModal">
+            <div class="modal-content pixel-box">
+                <h2>Level Complete!</h2>
+                <div class="level-complete-coins">
+                    <canvas id="levelCoin1" width="48" height="48"></canvas>
+                    <canvas id="levelCoin2" width="48" height="48"></canvas>
+                    <canvas id="levelCoin3" width="48" height="48"></canvas>
+                </div>
+                <p class="next-level">Next Level: <span id="nextLevel">2</span></p>
+                <p class="targets-count">Targets: <span id="targetsCount">3</span></p>
+                <button class="pixel-button" id="nextButton">Continue</button>
+            </div>
+        </div>
+        
+        <div class="modal" id="gameOverModal">
+            <div class="modal-content pixel-box">
+                <h2>Time's Up!</h2>
+                <div class="game-over-coin">
+                    <canvas id="gameOverCoin" width="64" height="64"></canvas>
+                </div>
+                <p class="final-score">Final Score: <span id="finalScore">0</span></p>
+                <p class="final-level">Reached Level: <span id="finalLevel">1</span></p>
+                <button class="pixel-button" id="restartButton">Restart</button>
+            </div>
+        </div>
+        
+        <div class="modal" id="wrongModal">
+            <div class="modal-content pixel-box wrong">
+                <h2>Wrong Order!</h2>
+                <p>Touch targets in numeric order</p>
+                <p class="hint">1 → 2 → 3 → ...</p>
+            </div>
+        </div>
+        
+        <div class="modal fullscreen-modal" id="victoryModal">
+            <div class="victory-fullscreen">
+                <h1 class="victory-title">CONGRATULATIONS!</h1>
+                <div class="victory-key">
+                    <img src="key.gif" alt="Golden Key" class="key-animation" onerror="this.style.display='none'">
+                </div>
+                <p class="victory-message">You've completed all 5 levels!</p>
+                <div class="victory-stats">
+                    <div class="stat-item">
+                        <canvas id="victoryCoin" width="64" height="64"></canvas>
+                        <span class="stat-value" id="totalScore">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Levels:</span>
+                        <span class="stat-value"><span id="totalLevels">5</span>/5</span>
+                    </div>
+                </div>
+                <div class="secret-code-display">
+                    <p class="secret-label">SECRET CODE:</p>
+                    <div class="secret-code revealed" id="secretCode">0218</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal" id="cameraModal" style="display: flex;">
+            <div class="modal-content pixel-box">
+                <h2>📷 Camera Permission Required</h2>
+                <p>This game uses hand tracking technology</p>
+                <p>Please allow camera access to continue</p>
+                <button class="pixel-button" id="enableCameraButton">Enable Camera</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    
+    <!-- Game Script -->
+    <script src="game.js"></script>
+</body>
+</html>

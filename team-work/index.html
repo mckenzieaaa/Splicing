@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Pixel Hero Voice Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(180deg, #1a0033 0%, #000000 100%);
+            color: white;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        #gameContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        #gameCanvas {
+            border: 4px solid #8B2BE2;
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.5);
+            cursor: pointer;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+
+        #controls {
+            margin-top: 20px;
+            text-align: center;
+            background: rgba(138, 43, 226, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #8B2BE2;
+            max-width: 800px;
+        }
+
+        .button {
+            background: #8B2BE2;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 18px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .button:hover {
+            background: #9932CC;
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.8);
+            transform: scale(1.05);
+        }
+
+        .button:active {
+            transform: scale(0.95);
+        }
+
+        .button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        #status {
+            margin-top: 15px;
+            font-size: 16px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            min-height: 30px;
+        }
+
+        .status-ready {
+            color: #00ff00;
+        }
+
+        .status-error {
+            color: #ff0000;
+        }
+
+        .status-waiting {
+            color: #ffff00;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #8B2BE2;
+        }
+
+        .instructions {
+            margin-top: 10px;
+            font-size: 14px;
+            line-height: 1.8;
+            color: #ddd;
+        }
+
+        .instructions strong {
+            color: #FFD700;
+        }
+
+        #volumeMeter {
+            width: 300px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #8B2BE2;
+            margin: 10px auto;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #volumeBar {
+            height: 100%;
+            background: linear-gradient(90deg, #BA55D3 0%, #9370DB 100%);
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            #gameCanvas {
+                max-width: 100%;
+                height: auto;
+            }
+            
+            .button {
+                padding: 10px 20px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>🎮 Pixel Hero Voice Game</h1>
+        <canvas id="gameCanvas" width="1920" height="1080"></canvas>
+        
+        <div id="controls">
+            <button id="startBtn" class="button">🎤 Start Voice Control</button>
+            <button id="pauseBtn" class="button" disabled>⏸️ Pause</button>
+            <button id="restartBtn" class="button" style="display:none;">🔄 Restart</button>
+            
+            <div id="volumeMeter">
+                <div id="volumeBar"></div>
+            </div>
+            
+            <div id="status" class="status-waiting">
+                Click "Start Voice Control" to begin
+            </div>
+            
+            <div class="instructions">
+                <strong>🎤 Voice Controls:</strong><br>
+                • High pitch (whistling) = Fly UP ⬆️<br>
+                • Low pitch (humming) = Fly DOWN ⬇️<br>
+                • Silence = Stay in place<br>
+                <strong>Keyboard:</strong> SPACE = Pause/Resume
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game Configuration
+        const GAME_WIDTH = 1920;
+        const GAME_HEIGHT = 1080;
+        const PIXEL_SIZE = 16;
+        const FPS = 60;
+
+        // Colors
+        const COLORS = {
+            BLACK: '#000000',
+            WHITE: '#FFFFFF',
+            LIGHT_GRAY: '#C0C0C0',
+            DARK_GRAY: '#404040',
+            PURPLE: '#8A2BE2',
+            DARK_PURPLE: '#4B0082',
+            LIGHT_PURPLE: '#BA55D3',
+            DEEP_PURPLE: '#483D8B',
+            YELLOW: '#FFD700',
+            ACCENT_PURPLE: '#9370DB'
+        };
+
+        // Game State
+        let gameState = {
+            running: false,
+            paused: false,
+            gameOver: false,
+            score: 0,
+            hero: null,
+            obstacles: [],
+            obstacleTimer: 0,
+            currentPitch: 0,
+            currentVolume: 0
+        };
+
+        // Audio Context
+        let audioContext = null;
+        let analyser = null;
+        let microphone = null;
+        let dataArray = null;
+
+        // Canvas Setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        // Scale canvas for better display on smaller screens
+        function resizeCanvas() {
+            const container = document.getElementById('gameContainer');
+            const maxWidth = window.innerWidth - 40;
+            const maxHeight = window.innerHeight - 300;
+            const scale = Math.min(maxWidth / GAME_WIDTH, maxHeight / GAME_HEIGHT, 1);
+            
+            if (scale < 1) {
+                canvas.style.width = (GAME_WIDTH * scale) + 'px';
+                canvas.style.height = (GAME_HEIGHT * scale) + 'px';
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Pixel Hero Class
+        class PixelHero {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 16 * PIXEL_SIZE;
+                this.height = 16 * PIXEL_SIZE;
+                this.targetY = y;
+                this.speed = 0.3;
+            }
+
+            update(pitch, volume) {
+                if (volume > 50) {
+                    if (pitch > 0) {
+                        const normalized = Math.max(0, Math.min(1, (pitch - 80) / 720));
+                        this.targetY = GAME_HEIGHT - 150 - (normalized * (GAME_HEIGHT - 300));
+                    }
+                    const diff = this.targetY - this.y;
+                    this.y += diff * 0.4;
+                }
+
+                this.y = Math.max(this.height/2, Math.min(GAME_HEIGHT - this.height/2, this.y));
+            }
+
+            draw(ctx) {
+                const left = this.x - this.width / 2;
+                const top = this.y - this.height / 2;
+
+                // Draw yellow circle (face)
+                for (let row = 0; row < 16; row++) {
+                    for (let col = 0; col < 16; col++) {
+                        if (this.isInCircle(col, row, 8, 8, 7)) {
+                            let color = COLORS.YELLOW;
+                            if (row > 10) color = '#E6C300';
+                            ctx.fillStyle = color;
+                            ctx.fillRect(left + col * PIXEL_SIZE, top + row * PIXEL_SIZE, 
+                                       PIXEL_SIZE, PIXEL_SIZE);
+                        }
+                    }
+                }
+
+                // Draw outline
+                ctx.fillStyle = COLORS.BLACK;
+                const outline = [
+                    [4,1],[5,1],[6,1],[7,1],[8,1],[9,1],[10,1],[11,1],
+                    [3,2],[12,2],[2,3],[13,3],
+                    [1,4],[1,5],[1,6],[1,7],[1,8],[1,9],[1,10],[1,11],
+                    [14,4],[14,5],[14,6],[14,7],[14,8],[14,9],[14,10],[14,11],
+                    [2,12],[13,12],[3,13],[12,13],
+                    [4,14],[5,14],[6,14],[7,14],[8,14],[9,14],[10,14],[11,14]
+                ];
+                outline.forEach(([col, row]) => {
+                    ctx.fillRect(left + col * PIXEL_SIZE, top + row * PIXEL_SIZE, 
+                               PIXEL_SIZE, PIXEL_SIZE);
+                });
+
+                // Eyes
+                [[5,5],[6,5],[9,5],[10,5]].forEach(([col, row]) => {
+                    ctx.fillRect(left + col * PIXEL_SIZE, top + row * PIXEL_SIZE, 
+                               PIXEL_SIZE, PIXEL_SIZE);
+                });
+
+                // Nose
+                [[7,8],[8,8]].forEach(([col, row]) => {
+                    ctx.fillRect(left + col * PIXEL_SIZE, top + row * PIXEL_SIZE, 
+                               PIXEL_SIZE, PIXEL_SIZE);
+                });
+
+                // Smile
+                [[5,10],[6,11],[7,11],[8,11],[9,11],[10,10]].forEach(([col, row]) => {
+                    ctx.fillRect(left + col * PIXEL_SIZE, top + row * PIXEL_SIZE, 
+                               PIXEL_SIZE, PIXEL_SIZE);
+                });
+            }
+
+            isInCircle(x, y, cx, cy, radius) {
+                return Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) <= radius;
+            }
+        }
+
+        // Obstacle Class
+        class Obstacle {
+            constructor(x) {
+                this.x = x;
+                this.gapY = 300 + Math.random() * (GAME_HEIGHT - 600);
+                this.gapSize = 500;
+                this.width = 80;
+                this.speed = 3.5;
+                this.passed = false;
+            }
+
+            update() {
+                this.x -= this.speed;
+            }
+
+            draw(ctx) {
+                const upperHeight = this.gapY - this.gapSize / 2;
+                const lowerY = this.gapY + this.gapSize / 2;
+                const lowerHeight = GAME_HEIGHT - lowerY;
+
+                this.drawPixelColumn(ctx, this.x, 0, this.width, upperHeight);
+                this.drawPixelColumn(ctx, this.x, lowerY, this.width, lowerHeight);
+            }
+
+            drawPixelColumn(ctx, x, y, width, height) {
+                // Checkered pattern
+                for (let row = 0; row < height; row += PIXEL_SIZE) {
+                    for (let col = 0; col < width; col += PIXEL_SIZE) {
+                        const isEven = (Math.floor(row/PIXEL_SIZE) + Math.floor(col/PIXEL_SIZE)) % 2 === 0;
+                        ctx.fillStyle = isEven ? COLORS.PURPLE : COLORS.DEEP_PURPLE;
+                        ctx.fillRect(x + col, y + row, PIXEL_SIZE, PIXEL_SIZE);
+                    }
+                }
+
+                // Outline
+                ctx.strokeStyle = COLORS.BLACK;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, width, height);
+            }
+
+            collidesWithHero(hero) {
+                if (hero.x + hero.width/2 > this.x && hero.x - hero.width/2 < this.x + this.width) {
+                    if (hero.y - hero.height/2 < this.gapY - this.gapSize/2 || 
+                        hero.y + hero.height/2 > this.gapY + this.gapSize/2) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            isOffScreen() {
+                return this.x + this.width < 0;
+            }
+        }
+
+        // Audio Setup
+        async function setupAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                
+                const bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+
+                updateStatus('🎤 Microphone ready! Game starting...', 'status-ready');
+                return true;
+            } catch (error) {
+                updateStatus('❌ Microphone access denied. Please allow microphone access.', 'status-error');
+                console.error('Audio setup error:', error);
+                return false;
+            }
+        }
+
+        // Analyze Audio
+        function analyzeAudio() {
+            if (!analyser || !dataArray) return { pitch: 0, volume: 0 };
+
+            analyser.getByteFrequencyData(dataArray);
+            
+            // Calculate volume (RMS)
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i] * dataArray[i];
+            }
+            const volume = Math.sqrt(sum / dataArray.length);
+
+            // Find dominant frequency (pitch)
+            let maxValue = 0;
+            let maxIndex = 0;
+            const startIndex = Math.floor(80 * dataArray.length / (audioContext.sampleRate / 2));
+            const endIndex = Math.floor(1000 * dataArray.length / (audioContext.sampleRate / 2));
+
+            for (let i = startIndex; i < endIndex && i < dataArray.length; i++) {
+                if (dataArray[i] > maxValue) {
+                    maxValue = dataArray[i];
+                    maxIndex = i;
+                }
+            }
+
+            const pitch = maxIndex * (audioContext.sampleRate / 2) / dataArray.length;
+
+            // Update volume meter
+            const volumeBar = document.getElementById('volumeBar');
+            volumeBar.style.width = Math.min(100, (volume / 128) * 100) + '%';
+
+            return { pitch: maxValue > 30 ? pitch : 0, volume };
+        }
+
+        // Draw Background
+        function drawBackground() {
+            // Gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            gradient.addColorStop(0, COLORS.DEEP_PURPLE);
+            gradient.addColorStop(1, COLORS.BLACK);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            // Stars
+            ctx.fillStyle = COLORS.WHITE;
+            for (let i = 0; i < 100; i++) {
+                const x = (i * 137 + 42) % GAME_WIDTH;
+                const y = (i * 197 + 73) % GAME_HEIGHT;
+                const size = (i % 3 + 1) * PIXEL_SIZE / 2;
+                ctx.fillRect(x, y, size, size);
+            }
+        }
+
+        // Draw UI
+        function drawUI() {
+            ctx.fillStyle = COLORS.YELLOW;
+            ctx.font = 'bold 64px "Courier New"';
+            ctx.fillText(`SCORE: ${gameState.score}`, 20, 80);
+
+            ctx.fillStyle = COLORS.WHITE;
+            ctx.font = '36px "Courier New"';
+            ctx.fillText(`Pitch: ${gameState.currentPitch.toFixed(1)} Hz`, 20, 140);
+            ctx.fillText(`Volume: ${gameState.currentVolume.toFixed(1)}`, 20, 180);
+
+            if (gameState.gameOver) {
+                // Game Over Overlay
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+                ctx.fillStyle = COLORS.PURPLE;
+                ctx.font = 'bold 120px "Courier New"';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER!', GAME_WIDTH/2, GAME_HEIGHT/2 - 100);
+
+                ctx.fillStyle = COLORS.YELLOW;
+                ctx.font = 'bold 60px "Courier New"';
+                ctx.fillText(`FINAL SCORE: ${gameState.score}`, GAME_WIDTH/2, GAME_HEIGHT/2);
+
+                ctx.fillStyle = COLORS.WHITE;
+                ctx.font = '60px "Courier New"';
+                ctx.fillText('Click RESTART to play again', GAME_WIDTH/2, GAME_HEIGHT/2 + 100);
+                ctx.textAlign = 'left';
+            } else if (gameState.paused) {
+                // Paused Overlay
+                ctx.fillStyle = 'rgba(75, 0, 130, 0.7)';
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+                ctx.fillStyle = COLORS.YELLOW;
+                ctx.font = 'bold 100px "Courier New"';
+                ctx.textAlign = 'center';
+                ctx.fillText('PAUSED', GAME_WIDTH/2, GAME_HEIGHT/2);
+                ctx.textAlign = 'left';
+            }
+        }
+
+        // Update Game
+        function update() {
+            if (!gameState.running || gameState.paused || gameState.gameOver) return;
+
+            // Get audio data
+            const audio = analyzeAudio();
+            gameState.currentPitch = audio.pitch;
+            gameState.currentVolume = audio.volume;
+
+            // Update hero
+            gameState.hero.update(audio.pitch, audio.volume);
+
+            // Update obstacles
+            gameState.obstacleTimer += 1000 / FPS;
+            if (gameState.obstacleTimer > 3000) {
+                gameState.obstacles.push(new Obstacle(GAME_WIDTH));
+                gameState.obstacleTimer = 0;
+            }
+
+            for (let i = gameState.obstacles.length - 1; i >= 0; i--) {
+                const obstacle = gameState.obstacles[i];
+                obstacle.update();
+
+                // Check collision
+                if (obstacle.collidesWithHero(gameState.hero)) {
+                    gameState.gameOver = true;
+                    updateStatus(`💀 Game Over! Final Score: ${gameState.score}`, 'status-error');
+                    document.getElementById('restartBtn').style.display = 'inline-block';
+                    document.getElementById('pauseBtn').disabled = true;
+                }
+
+                // Check if passed
+                if (!obstacle.passed && obstacle.x + obstacle.width < gameState.hero.x) {
+                    obstacle.passed = true;
+                    gameState.score++;
+                    console.log(`🎉 Score: ${gameState.score}`);
+                }
+
+                // Remove off-screen obstacles
+                if (obstacle.isOffScreen()) {
+                    gameState.obstacles.splice(i, 1);
+                }
+            }
+        }
+
+        // Draw Game
+        function draw() {
+            drawBackground();
+
+            if (gameState.hero) {
+                // Draw obstacles
+                gameState.obstacles.forEach(obstacle => obstacle.draw(ctx));
+
+                // Draw hero
+                gameState.hero.draw(ctx);
+            }
+
+            drawUI();
+        }
+
+        // Game Loop
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initialize Game
+        function initGame() {
+            gameState.hero = new PixelHero(300, GAME_HEIGHT / 2);
+            gameState.obstacles = [];
+            gameState.score = 0;
+            gameState.obstacleTimer = 0;
+            gameState.gameOver = false;
+            gameState.paused = false;
+            gameState.running = true;
+        }
+
+        // Update Status Message
+        function updateStatus(message, className) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = className;
+        }
+
+        // Event Listeners
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            const success = await setupAudio();
+            if (success) {
+                initGame();
+                gameLoop();
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = false;
+                updateStatus('🎮 Game running! Use your voice to control the hero!', 'status-ready');
+            }
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            gameState.paused = !gameState.paused;
+            const btn = document.getElementById('pauseBtn');
+            if (gameState.paused) {
+                btn.textContent = '▶️ Resume';
+                updateStatus('⏸️ Game paused', 'status-waiting');
+            } else {
+                btn.textContent = '⏸️ Pause';
+                updateStatus('🎮 Game running!', 'status-ready');
+            }
+        });
+
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            initGame();
+            document.getElementById('restartBtn').style.display = 'none';
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('pauseBtn').textContent = '⏸️ Pause';
+            updateStatus('🎮 Game restarted! Use your voice to control the hero!', 'status-ready');
+        });
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (gameState.gameOver) {
+                    document.getElementById('restartBtn').click();
+                } else if (gameState.running) {
+                    document.getElementById('pauseBtn').click();
+                }
+            }
+        });
+
+        // Initial draw
+        draw();
+    </script>
+</body>
+</html>
