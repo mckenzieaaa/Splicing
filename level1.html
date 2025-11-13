@@ -220,6 +220,58 @@
   const keys = {};
   window.addEventListener('keydown', e=>{ 
     keys[e.key] = true;
+    
+    // Word guessing input
+    if (showingPrompt && activeWordIndex >= 0) {
+      const key = e.key.toUpperCase();
+      e.preventDefault(); // Prevent default keyboard behavior when typing
+      
+      if (key === 'ESCAPE') {
+        // Exit input mode
+        currentInput = '';
+        showingPrompt = false;
+        activeWordIndex = -1;
+        Object.keys(keys).forEach(k => keys[k] = false);
+        showNarrative('Search the world for clues...', 2000);
+      } else if (key === 'BACKSPACE') {
+        currentInput = currentInput.slice(0, -1);
+      } else if (key === 'ENTER') {
+        // Check if word is correct
+        const puzzle = wordPuzzles[activeWordIndex];
+        if (currentInput === puzzle.word) {
+          // Correct! Start coin animation
+          const coin = collectibles[activeWordIndex];
+          const coinScreenX = coin.x - camX;
+          const coinScreenY = coin.y;
+          
+          // Start animation
+          coinAnimation = {
+            startX: coinScreenX,
+            startY: coinScreenY,
+            startTime: performance.now(),
+            coinIndex: activeWordIndex,
+            targetCount: displayedCoinCount + 1
+          };
+          
+          collectibles[activeWordIndex].unlocked = true;
+          collectibles[activeWordIndex].collected = true;
+          playPickup();
+          
+          currentInput = '';
+          showingPrompt = false;
+          activeWordIndex = -1;
+          // Clear all movement keys to prevent stuck movement
+          Object.keys(keys).forEach(k => keys[k] = false);
+        } else {
+          // Wrong answer
+          showNarrative('Try again...', 1500);
+          currentInput = '';
+        }
+      } else if (key.length === 1 && key.match(/[A-Z]/)) {
+        // Add letter to input
+        currentInput += key;
+      }
+    }
   });
   window.addEventListener('keyup', e=>{ 
     keys[e.key] = false;
@@ -246,11 +298,36 @@
           {x:0, y:0, w:20000, h:6} // Will be repositioned when background loads; width matches long scene
         ];
 
-        const collectibles = [
-          {x: 2400, y: 0, w:8, h:8, collected:false},
-          {x: 5600, y: 0, w:8, h:8, collected:false},
-          {x: 8800, y: 0, w:8, h:8, collected:false}
+        // Word guessing game - 3 words to unlock 3 coins
+        const wordPuzzles = [
+          { word: 'STONE', hint: 'A small ____ rests quietly', x: 2400 },
+          { word: 'TREE', hint: '____ shadows drift past', x: 5600 },
+          { word: 'TIME', hint: 'Walk slowly leave ____', x: 8800 }
         ];
+        
+        let currentInput = '';
+        let activeWordIndex = -1; // Which word puzzle is active
+        let showingPrompt = false;
+        
+        // Coin collection animation
+        let coinAnimation = null; // { startX, startY, startTime, coinIndex, targetCount }
+        const COIN_ANIM_DURATION = 1000; // 1 second animation
+        let displayedCoinCount = 0; // For animated counter
+        
+        // Generate coin collectibles
+        const collectibles = [];
+        wordPuzzles.forEach((puzzle, idx) => {
+          collectibles.push({
+            x: puzzle.x,
+            y: 0,
+            w: 12,
+            h: 12,
+            wordIndex: idx,
+            collected: false,
+            unlocked: false, // Unlocked when word is guessed
+            nearPlayer: false
+          });
+        });
 
         // Update platform and collectible Y positions when background loads
         function updateGroundPositions(){
@@ -263,7 +340,7 @@
           player.y = visualGround - player.h * PHYS_SCALE;
         }
 
-        const COLLECT_TARGET = collectibles.length;
+        const COLLECT_TARGET = 3; // Need to collect 3 coins to win
 
   // walking sprite (16x16) monochrome frames — 6 subtle frames for smoother movement
   const SPRITES = [
@@ -312,63 +389,72 @@
         function playPickup(){ playTone(880, 0.18, 'sine', 0.12); }
 
         function update(dt){
+          if (!dt || dt <= 0) return; // Safety check
+          
           // track previous grounded state for proper jump edge detection
           const wasOnGround = !!player.onGround;
           // reset grounded state; will be set during collision check
           player.onGround = false;
           
           // ===== MOVEMENT INPUT - Completely Rewritten =====
-          const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
-          const right = keys['ArrowRight'] || keys['d'] || keys['D'];
-          const shift = keys['Shift'];
-          
-          // Reset movement state
-          player.vx = 0;
-          player.anim = 0;
-          player.running = false;
-          
-          // Apply movement based on keys pressed
-          if(left && !right) {
-            // Moving left only
-            player.dir = -1;
-            player.anim = 1;
-            if(shift) {
-              // Running left
-              player.vx = -240;
-              player.running = true;
-            } else {
-              // Walking left
-              player.vx = -140;
-              player.running = false;
+          // Don't move when typing in word puzzle
+          if (showingPrompt && activeWordIndex >= 0) {
+            player.vx = 0;
+            player.anim = 0;
+            player.running = false;
+          } else {
+            const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
+            const right = keys['ArrowRight'] || keys['d'] || keys['D'];
+            const shift = keys['Shift'];
+            
+            // Reset movement state
+            player.vx = 0;
+            player.anim = 0;
+            player.running = false;
+            
+            // Apply movement based on keys pressed
+            if(left && !right) {
+              // Moving left only
+              player.dir = -1;
+              player.anim = 1;
+              if(shift) {
+                // Running left
+                player.vx = -240;
+                player.running = true;
+              } else {
+                // Walking left
+                player.vx = -140;
+                player.running = false;
+              }
+            } 
+            else if(right && !left) {
+              // Moving right only
+              player.dir = 1;
+              player.anim = 1;
+              if(shift) {
+                // Running right
+                player.vx = 240;
+                player.running = true;
+              } else {
+                // Walking right
+                player.vx = 140;
+                player.running = false;
+              }
             }
-          } 
-          else if(right && !left) {
-            // Moving right only
-            player.dir = 1;
-            player.anim = 1;
-            if(shift) {
-              // Running right
-              player.vx = 240;
-              player.running = true;
-            } else {
-              // Walking right
-              player.vx = 140;
-              player.running = false;
+            else if(left && right) {
+              // Both pressed - move right (right has priority)
+              player.dir = 1;
+              player.anim = 1;
+              if(shift) {
+                player.vx = 240;
+                player.running = true;
+              } else {
+                player.vx = 140;
+                player.running = false;
+              }
             }
+            // else: neither pressed - stays at 0 (idle)
           }
-          else if(left && right) {
-            // Both pressed - move right (right has priority)
-            player.dir = 1;
-            player.anim = 1;
-            if(shift) {
-              player.vx = 240;
-              player.running = true;
-            } else {
-              player.vx = 140;
-              player.running = false;
-            }
-          }
-          // else: neither pressed - stays at 0 (idle)
 
           // (jump will be applied after collision resolves to use correct grounded state)
 
@@ -417,11 +503,21 @@
           }
           lastJumpPressed = jumpPressed; // Store for next frame
 
-          // collectibles (use scaled collision box for detection)
-          collectibles.forEach(c=>{
+          // collectibles - check if player is near and show word puzzle
+          collectibles.forEach((c, idx)=>{
             if(!c.collected){
-              if(player.x + collisionW > c.x && player.x < c.x + c.w && player.y + collisionH > c.y && player.y < c.y + c.h){
-                c.collected = true; playPickup();
+              const isNear = player.x + collisionW > c.x && player.x < c.x + c.w && 
+                             player.y + collisionH > c.y && player.y < c.y + c.h;
+              
+              c.nearPlayer = isNear;
+              
+              if (isNear && !c.unlocked) {
+                // Show word puzzle prompt
+                if (!showingPrompt) {
+                  showingPrompt = true;
+                  activeWordIndex = idx;
+                  currentInput = '';
+                }
               }
             }
           });
@@ -490,73 +586,115 @@
             ctx.fillRect(0, groundY, VW, VH-groundY);
           }
 
-          // draw collectibles (use spinning coin animation with glow)
-          collectibles.forEach(c=>{
+          // draw collectibles (coins with word puzzles)
+          collectibles.forEach((c, idx)=>{
             if(!c.collected){
               const cx = Math.round(c.x - camX);
               const cy = Math.round(c.y);
               
-              if(coinImage){
-                const size = 48; // Size of the coin icon
-                
-                // Draw layered glow effect (background halo) - white glow
+              // Draw coin (gold if unlocked, gray if locked)
+              const isUnlocked = c.unlocked;
+              const glowColor = isUnlocked ? 'rgba(200, 200, 200, 0.8)' : 'rgba(100, 100, 100, 0.5)';
+              
+              // Glow effect
+              if (isUnlocked || c.nearPlayer) {
                 ctx.save();
-                
-                // Outer glow (largest)
-                ctx.shadowBlur = 40;
-                ctx.shadowColor = 'rgba(255,255,255,0.8)';
-                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                const pulse = Math.sin(Date.now() * 0.005) * 0.3 + 0.7;
+                ctx.shadowBlur = 30 * pulse;
+                ctx.shadowColor = glowColor;
+                ctx.fillStyle = isUnlocked ? 'rgba(200, 200, 200, 0.2)' : 'rgba(100, 100, 100, 0.1)';
                 ctx.beginPath();
-                ctx.arc(cx, cy, size * 0.8, 0, Math.PI * 2);
+                ctx.arc(cx, cy, 40, 0, Math.PI * 2);
                 ctx.fill();
-                
-                // Middle glow
-                ctx.shadowBlur = 25;
-                ctx.shadowColor = 'rgba(255,255,255,0.9)';
-                ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                ctx.beginPath();
-                ctx.arc(cx, cy, size * 0.6, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Inner bright glow
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = 'rgba(255,255,255,1)';
-                ctx.fillStyle = 'rgba(255,255,255,0.5)';
-                ctx.beginPath();
-                ctx.arc(cx, cy, size * 0.4, 0, Math.PI * 2);
-                ctx.fill();
-                
                 ctx.restore();
+              }
+              
+              // Draw coin using image or fallback to circle
+              ctx.save();
+              if (coinImage) {
+                // Use coin spritesheet - assume 8 frames spinning animation
+                const frameCount = 8;
+                const frameIndex = Math.floor((Date.now() * 0.008) % frameCount);
+                const frameW = coinImage.width / frameCount;
+                const frameH = coinImage.height;
+                const coinSize = 48; // Display size
                 
-                // Draw the animated spinning coin (8 frames)
-                ctx.save();
-                const totalFrames = 8;
-                const frameIndex = Math.floor((performance.now() / 150) % totalFrames); // 150ms per frame (slower)
-                const frameWidth = coinImage.width / totalFrames;
-                const frameHeight = coinImage.height;
+                // Apply grayscale filter if locked
+                if (!isUnlocked) {
+                  ctx.filter = 'grayscale(100%) brightness(0.6)';
+                }
                 
-                ctx.shadowBlur = 5;
-                ctx.shadowColor = 'rgba(255,255,255,0.8)';
+                ctx.shadowBlur = isUnlocked ? 15 : 5;
+                ctx.shadowColor = glowColor;
+                
                 ctx.drawImage(
-                  coinImage, 
-                  frameIndex * frameWidth, 0, frameWidth, frameHeight,  // source
-                  cx - size/2, cy - size/2, size, size  // destination
+                  coinImage,
+                  frameIndex * frameW, 0, frameW, frameH,
+                  cx - coinSize/2, cy - coinSize/2, coinSize, coinSize
                 );
-                ctx.restore();
-                
               } else {
-                // Fallback: draw white circle if image not loaded
-                const r = Math.round(8 * VISUAL_SCALE);
-                ctx.save();
-                ctx.shadowBlur = 12 * (VISUAL_SCALE/2);
-                ctx.shadowColor = 'rgba(255,255,255,0.9)';
-                ctx.fillStyle = '#ffffff';
+                // Fallback: draw circle
+                const coinColor = isUnlocked ? '#cccccc' : '#888888';
+                ctx.fillStyle = coinColor;
+                ctx.shadowBlur = isUnlocked ? 15 : 5;
+                ctx.shadowColor = glowColor;
                 ctx.beginPath();
-                ctx.arc(cx + c.w/2, cy + c.h*0.5, r, 0, Math.PI*2);
+                ctx.arc(cx, cy, 24, 0, Math.PI * 2);
                 ctx.fill();
+                
+                ctx.strokeStyle = isUnlocked ? '#dddddd' : '#666666';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+              }
+              ctx.restore();
+              
+              // Show word puzzle when near
+              if (c.nearPlayer && !isUnlocked && showingPrompt && activeWordIndex === idx) {
+                const puzzle = wordPuzzles[idx];
+                
+                // Draw puzzle box
+                ctx.save();
+                const boxW = 600;
+                const boxH = 180;
+                const boxX = cx - boxW/2;
+                const boxY = cy - 200;
+                
+                // Box background
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+                ctx.fillRect(boxX, boxY, boxW, boxH);
+                ctx.strokeStyle = '#cccccc';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(boxX, boxY, boxW, boxH);
+                
+                // Hint text
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '22px "PixelFont", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(puzzle.hint, cx, boxY + 40);
+                
+                // Input field
+                ctx.fillStyle = 'rgba(150, 150, 150, 0.3)';
+                ctx.fillRect(boxX + 50, boxY + 70, boxW - 100, 60);
+                ctx.strokeStyle = '#aaaaaa';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(boxX + 50, boxY + 70, boxW - 100, 60);
+                
+                // Current input
+                ctx.fillStyle = '#dddddd';
+                ctx.font = 'bold 36px "PixelFont", monospace';
+                ctx.fillText(currentInput + '_', cx, boxY + 112);
+                
+                // Instructions
+                ctx.fillStyle = '#bbbbbb';
+                ctx.font = '18px "PixelFont", monospace';
+                ctx.fillText('Type the word, press ENTER', cx, boxY + 145);
+                
+                // ESC hint
+                ctx.fillStyle = '#888888';
+                ctx.font = '14px "PixelFont", monospace';
+                ctx.fillText('Press ESC to explore and find clues', cx, boxY + 168);
+                
                 ctx.restore();
-                ctx.fillStyle = '#f4f4f4';
-                ctx.fillRect(Math.round(cx + c.w/2 - r*0.35), Math.round(cy + c.h*0.5 - r*0.35), Math.round(r*0.7), Math.round(r*0.7));
               }
             }
           });
@@ -709,8 +847,11 @@
               const dh = sh * 3;
               ctx.save();
               if(player.dir === -1){
+                // Flip horizontally - translate to sprite center, flip, draw centered
+                const spriteDrawX = px + offsetX + dw / 2;
+                ctx.translate(spriteDrawX, py + offsetY + dh / 2);
                 ctx.scale(-1, 1);
-                ctx.drawImage(sheet, frameIndex * sw, 0, sw, sh, -px - dw + offsetX, py + offsetY, dw, dh);
+                ctx.drawImage(sheet, frameIndex * sw, 0, sw, sh, -dw / 2, -dh / 2, dw, dh);
               }else{
                 ctx.drawImage(sheet, frameIndex * sw, 0, sw, sh, px + offsetX, py + offsetY, dw, dh);
               }
@@ -725,8 +866,9 @@
               const dh = sh * 3;
               ctx.save();
               if(player.dir === -1){
+                ctx.translate(px + (player.w * PHYS_SCALE) / 2, 0);
                 ctx.scale(-1, 1);
-                ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, -px - dw + offsetX, py + offsetY, dw, dh);
+                ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, -(player.w * PHYS_SCALE) / 2 + offsetX, py + offsetY, dw, dh);
               }else{
                 ctx.drawImage(playerIdleSheet, frameIndex * sw, 0, sw, sh, px + offsetX, py + offsetY, dw, dh);
               }
@@ -835,9 +977,139 @@
           ctx.textAlign = 'left';
           ctx.restore();
           
-          // HUD: small label & collectibles (subtle)
-          const collectedCount = collectibles.filter(c=>c.collected).length;
-          ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.font = '14px monospace'; ctx.fillText('Collected: ' + collectedCount + ' / ' + COLLECT_TARGET, 12, 26);
+          // HUD: Display coin collection progress (top left)
+          const collectedCoins = collectibles.filter(c=>c.collected).length;
+          const showCount = coinAnimation ? displayedCoinCount : collectedCoins;
+          
+          ctx.save();
+          // Draw progress box
+          const boxX = 20;
+          const boxY = 20;
+          const boxW = 280;
+          const boxH = 80;
+          
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fillRect(boxX, boxY, boxW, boxH);
+          ctx.strokeStyle = '#cccccc';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(boxX, boxY, boxW, boxH);
+          
+          // Title
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 20px "PixelFont", monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText('Word Puzzles', boxX + 15, boxY + 30);
+          
+          // Coin count with animation
+          ctx.fillStyle = showCount >= 3 ? '#ffffff' : '#cccccc';
+          ctx.font = 'bold 28px "PixelFont", monospace';
+          
+          // Add glow effect when count changes
+          if (coinAnimation && displayedCoinCount > 0) {
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#cccccc';
+          }
+          
+          ctx.fillText(`${showCount} / 3`, boxX + 15, boxY + 65);
+          
+          // Show current input if active
+          if (showingPrompt && currentInput.length > 0) {
+            ctx.fillStyle = '#cccccc';
+            ctx.font = '16px "PixelFont", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Input: ${currentInput}`, boxX + 15, boxY + boxH + 25);
+          }
+          
+          ctx.restore();
+          
+          // Draw coin collection animation
+          if (coinAnimation) {
+            const now = performance.now();
+            const elapsed = now - coinAnimation.startTime;
+            const progress = Math.min(elapsed / COIN_ANIM_DURATION, 1);
+            
+            // Easing function (ease-in-out)
+            const easeProgress = progress < 0.5 
+              ? 2 * progress * progress 
+              : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+            
+            // Target position (top left HUD)
+            const targetX = 150;
+            const targetY = 55;
+            
+            // Current position
+            const currentX = coinAnimation.startX + (targetX - coinAnimation.startX) * easeProgress;
+            const currentY = coinAnimation.startY + (targetY - coinAnimation.startY) * easeProgress;
+            
+            // Size animation (shrinks as it flies)
+            const size = 24 * (1 - easeProgress * 0.3);
+            
+            // Opacity (appears in center at the end)
+            const opacity = progress < 0.8 ? 1 : 1 - (progress - 0.8) / 0.2;
+            
+            // Draw flying coin
+            ctx.save();
+            ctx.globalAlpha = opacity;
+            
+            // Glow
+            const pulse = Math.sin(now * 0.01) * 0.3 + 0.7;
+            ctx.shadowBlur = 30 * pulse;
+            ctx.shadowColor = 'rgba(200, 200, 200, 0.8)';
+            
+            if (coinImage) {
+              // Use coin image for animation
+              const frameCount = 8;
+              const frameIndex = Math.floor((now * 0.008) % frameCount);
+              const frameW = coinImage.width / frameCount;
+              const frameH = coinImage.height;
+              const coinSize = size * 2; // Match size
+              
+              ctx.drawImage(
+                coinImage,
+                frameIndex * frameW, 0, frameW, frameH,
+                currentX - coinSize/2, currentY - coinSize/2, coinSize, coinSize
+              );
+            } else {
+              // Fallback: draw circle
+              ctx.fillStyle = '#ffd700';
+              ctx.beginPath();
+              ctx.arc(currentX, currentY, size, 0, Math.PI * 2);
+              ctx.fill();
+              
+              ctx.strokeStyle = '#ffed4e';
+              ctx.lineWidth = 3;
+              ctx.stroke();
+            }
+            
+            ctx.restore();
+            
+            // Update displayed count smoothly
+            if (progress >= 0.8) {
+              const countProgress = (progress - 0.8) / 0.2;
+              displayedCoinCount = Math.floor(coinAnimation.targetCount * countProgress + (coinAnimation.targetCount - 1) * (1 - countProgress));
+            }
+            
+            // Show "Collected!" text in center
+            if (progress >= 0.7 && progress < 1.0) {
+              const textOpacity = progress < 0.85 ? (progress - 0.7) / 0.15 : 1 - (progress - 0.85) / 0.15;
+              ctx.save();
+              ctx.globalAlpha = textOpacity;
+              ctx.fillStyle = '#ffffff';
+              ctx.font = 'bold 48px "PixelFont", monospace';
+              ctx.textAlign = 'center';
+              ctx.shadowBlur = 20;
+              ctx.shadowColor = 'rgba(200, 200, 200, 0.8)';
+              ctx.fillText('Collected!', VW / 2, VH / 2);
+              ctx.restore();
+            }
+            
+            // End animation
+            if (progress >= 1) {
+              coinAnimation = null;
+              displayedCoinCount = coinAnimation ? coinAnimation.targetCount : collectibles.filter(c=>c.collected).length;
+            }
+          }
+          
           // if reveal in progress draw reveal overlay elements
           drawReveal();
         }
@@ -845,13 +1117,19 @@
         let last = performance.now();
         let running = false;
         function loop(now){
-          const dt = now - last; last = now;
-          animTick += (player.anim ? dt/140 : dt/800); // faster when walking
-          update(dt);
-          draw();
-          updateNarrativeAnim(now);
-          if(running) requestAnimationFrame(loop);
-          else last = performance.now();
+          try {
+            const dt = now - last; last = now;
+            animTick += (player.anim ? dt/140 : dt/800); // faster when walking
+            update(dt);
+            draw();
+            updateNarrativeAnim(now);
+            if(running) requestAnimationFrame(loop);
+            else last = performance.now();
+          } catch(err) {
+            console.error('Error in game loop:', err);
+            running = false;
+            alert('Game error: ' + err.message + '\nCheck console for details');
+          }
         }
 
         // particle + reveal animation state
@@ -1268,12 +1546,21 @@
         // Auto-walk + narrative mode (The Longest Road on Earth style)
         let controlMode = 'auto'; // 'auto' | 'player'
         function startGame(){
-          startOverlay.style.display = 'none';
-          running = true; last = performance.now(); requestAnimationFrame(loop);
-          if('ontouchstart' in window) document.getElementById('touchControls').style.display = 'flex';
-          // start ambient audio and scripted events
-          startAmbient();
-          startEventSequence();
+          console.log('Game starting...');
+          try {
+            startOverlay.style.display = 'none';
+            running = true; 
+            last = performance.now(); 
+            requestAnimationFrame(loop);
+            if('ontouchstart' in window) document.getElementById('touchControls').style.display = 'flex';
+            // start ambient audio and scripted events
+            if (typeof startAmbient === 'function') startAmbient();
+            if (typeof startEventSequence === 'function') startEventSequence();
+            console.log('Game started successfully');
+          } catch(err) {
+            console.error('Error starting game:', err);
+            alert('Error: ' + err.message);
+          }
         }
         startBtn.addEventListener('click', startGame);
         window.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' && !running) startGame(); });
