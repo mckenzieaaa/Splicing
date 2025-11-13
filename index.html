@@ -1,721 +1,1439 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Splicing - 拼豆像素之旅</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Press Start 2P', 'Courier New', monospace;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            margin: 0;
-            transition: background 0.8s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        /* 拼豆板背景网格 */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image: 
-                radial-gradient(circle at center, rgba(0,0,0,0.12) 1.5px, transparent 1.5px);
-            background-size: 20px 20px;
-            opacity: 0.4;
-            pointer-events: none;
-            z-index: 0;
-        }
-        
-        /* Stage 0: 初始状态 - 浅灰拼豆板 */
-        body.stage-0 {
-            background: #e8e8e8;
-            color: #2c3e50;
-        }
-        
-        body.stage-0::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image: 
-                radial-gradient(circle at 25% 25%, rgba(255,255,255,0.3) 0%, transparent 50%),
-                radial-gradient(circle at 75% 75%, rgba(200,200,200,0.2) 0%, transparent 50%);
-            z-index: 0;
-            pointer-events: none;
-        }
-        
-        /* Stage 1: Level 1 解锁 - 黑白灰拼豆 */
-        body.stage-1 {
-            background: #3a3a3a;
-            color: #ecf0f1;
-        }
-        
-        body.stage-1::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image: 
-                radial-gradient(circle at 30% 40%, rgba(80,80,80,0.5) 0%, transparent 40%),
-                radial-gradient(circle at 70% 60%, rgba(100,100,100,0.5) 0%, transparent 40%);
-            z-index: 0;
-            pointer-events: none;
-        }
-        
-        /* Stage 2: Level 2 解锁 - 黑白灰 + 蓝绿拼豆 */
-        body.stage-2 {
-            background: #2c3e50;
-            color: #ecf0f1;
-        }
-        
-        body.stage-2::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image: 
-                radial-gradient(circle at 20% 30%, rgba(41,128,185,0.4) 0%, transparent 35%),
-                radial-gradient(circle at 80% 70%, rgba(39,174,96,0.4) 0%, transparent 35%),
-                radial-gradient(circle at 50% 50%, rgba(100,100,100,0.2) 0%, transparent 50%);
-            z-index: 0;
-            pointer-events: none;
-        }
-        
-        /* Stage 3: Level 3 解锁 - 完整彩色拼豆 */
-        body.stage-3 {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #ffffff;
-        }
-        
-        body.stage-3::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image: 
-                radial-gradient(circle at 15% 20%, rgba(102,126,234,0.5) 0%, transparent 30%),
-                radial-gradient(circle at 85% 80%, rgba(240,147,251,0.5) 0%, transparent 30%),
-                radial-gradient(circle at 50% 10%, rgba(255,159,124,0.4) 0%, transparent 35%),
-                radial-gradient(circle at 70% 50%, rgba(79,172,254,0.4) 0%, transparent 30%),
-                radial-gradient(circle at 30% 80%, rgba(243,156,18,0.3) 0%, transparent 25%);
-            z-index: 0;
-            pointer-events: none;
-        }
-        
-        /* 拼豆板主容器 - 1920x1080 比例 */
-        .pegboard {
-            width: 100vw;
-            height: 100vh;
-            max-width: 1920px;
-            max-height: 1080px;
-            aspect-ratio: 16 / 9;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 24px;
-            box-shadow: 
-                0 0 0 12px rgba(50, 50, 50, 0.15),
-                0 8px 0 12px rgba(40, 40, 40, 0.1),
-                0 30px 80px rgba(0, 0, 0, 0.4),
-                inset 0 2px 4px rgba(255, 255, 255, 0.8),
-                inset 0 -2px 4px rgba(0, 0, 0, 0.1);
-            transition: all 0.8s ease;
-            position: relative;
-            z-index: 1;
-            overflow-y: auto;
-        }
-        
-        body.stage-0 .pegboard {
-            background: rgba(255, 255, 255, 0.98);
-            box-shadow: 
-                0 0 0 12px rgba(180, 180, 180, 0.3),
-                0 6px 0 12px rgba(160, 160, 160, 0.2),
-                0 15px 40px rgba(0, 0, 0, 0.15),
-                inset 0 2px 4px rgba(255, 255, 255, 1);
-        }
-        
-        body.stage-1 .pegboard {
-            background: rgba(70, 70, 70, 0.95);
-            box-shadow: 
-                0 0 0 12px rgba(30, 30, 30, 0.5),
-                0 8px 0 12px rgba(20, 20, 20, 0.4),
-                0 30px 80px rgba(0, 0, 0, 0.6),
-                inset 0 2px 4px rgba(100, 100, 100, 0.5);
-        }
-        
-        body.stage-2 .pegboard {
-            background: rgba(52, 73, 94, 0.95);
-            box-shadow: 
-                0 0 0 12px rgba(30, 50, 70, 0.5),
-                0 8px 0 12px rgba(20, 40, 60, 0.4),
-                0 30px 80px rgba(0, 0, 0, 0.5),
-                inset 0 2px 4px rgba(70, 100, 120, 0.5);
-        }
-        
-        body.stage-3 .pegboard {
-            background: rgba(102, 126, 234, 0.25);
-            backdrop-filter: blur(20px);
-            box-shadow: 
-                0 0 0 12px rgba(102, 126, 234, 0.3),
-                0 8px 0 12px rgba(118, 75, 162, 0.3),
-                0 30px 80px rgba(0, 0, 0, 0.4),
-                inset 0 2px 4px rgba(255, 255, 255, 0.3);
-        }
-        
-        /* 内部拼豆板内容区 */
-        .pegboard-content {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            padding: 60px 80px;
-            position: relative;
-            min-height: calc(100vh - 48px);
-            max-height: calc(1080px - 48px);
-        }
-        
-        body.stage-0 .pegboard-content {
-            background: rgba(0, 0, 0, 0.02);
-        }
-        
-        body.stage-1 .pegboard-content {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        
-        body.stage-2 .pegboard-content {
-            background: rgba(255, 255, 255, 0.08);
-        }
-        
-        body.stage-3 .pegboard-content {
-            background: rgba(255, 255, 255, 0.15);
-        }
-        
-        h1 {
-            text-align: center;
-            margin-bottom: 15px;
-            font-size: 40px;
-            text-shadow: 
-                3px 3px 0 rgba(0, 0, 0, 0.2),
-                -1px -1px 0 rgba(255, 255, 255, 0.3);
-            transition: all 0.5s ease;
-            letter-spacing: 4px;
-        }
-        
-        body.stage-0 h1 {
-            color: #2c3e50;
-            text-shadow: 
-                2px 2px 0 rgba(0, 0, 0, 0.1),
-                -1px -1px 0 rgba(255, 255, 255, 0.5);
-        }
-        
-        .subtitle {
-            text-align: center;
-            margin-bottom: 35px;
-            font-size: 11px;
-            opacity: 0.85;
-            letter-spacing: 1px;
-        }
-        
-        /* 拼豆进度条 */
-        .progress-container {
-            margin: 35px 0;
-            padding: 8px;
-            background: rgba(0, 0, 0, 0.15);
-            border-radius: 20px;
-            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
-        }
-        
-        .progress-bar {
-            height: 24px;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 16px;
-            overflow: hidden;
-            position: relative;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #2ecc71, #3498db, #9b59b6);
-            border-radius: 16px;
-            transition: width 0.8s ease;
-            position: relative;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
-        
-        /* 拼豆珠效果 */
-        .progress-fill::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image: 
-                radial-gradient(circle at center, rgba(255,255,255,0.5) 30%, transparent 30%);
-            background-size: 12px 12px;
-            border-radius: 16px;
-        }
-        
-        /* 密钥输入区 - 拼豆框架风格 */
-        .key-input-section {
-            text-align: center;
-            margin-bottom: 35px;
-            padding: 30px;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 20px;
-            box-shadow: 
-                inset 0 2px 8px rgba(0, 0, 0, 0.1),
-                0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-        
-        body.stage-0 .key-input-section {
-            background: rgba(0, 0, 0, 0.04);
-        }
-        
-        .key-input-section label {
-            display: block;
-            margin-bottom: 18px;
-            font-size: 13px;
-            letter-spacing: 1px;
-        }
-        
-        .key-input {
-            width: 220px;
-            padding: 16px;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 16px;
-            text-align: center;
-            border: 4px solid rgba(0, 0, 0, 0.2);
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.95);
-            color: #2c3e50;
-            margin-right: 15px;
-            box-shadow: 
-                inset 0 2px 6px rgba(0, 0, 0, 0.1),
-                0 4px 0 rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-        }
-        
-        .key-input:focus {
-            outline: none;
-            border-color: #3498db;
-            transform: translateY(-2px);
-            box-shadow: 
-                inset 0 2px 6px rgba(52, 152, 219, 0.2),
-                0 6px 0 rgba(52, 152, 219, 0.2),
-                0 8px 20px rgba(52, 152, 219, 0.3);
-        }
-        
-        .submit-key-btn {
-            padding: 16px 32px;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 13px;
-            border: 4px solid rgba(0, 0, 0, 0.3);
-            border-radius: 12px;
-            background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 
-                0 6px 0 rgba(0, 0, 0, 0.2),
-                0 8px 20px rgba(52, 152, 219, 0.4);
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-        }
-        
-        body.stage-0 .submit-key-btn {
-            background: linear-gradient(180deg, #34495e 0%, #2c3e50 100%);
-            box-shadow: 
-                0 6px 0 rgba(0, 0, 0, 0.2),
-                0 8px 20px rgba(44, 62, 80, 0.3);
-        }
-        
-        .submit-key-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 
-                0 8px 0 rgba(0, 0, 0, 0.2),
-                0 12px 25px rgba(52, 152, 219, 0.5);
-        }
-        
-        .submit-key-btn:active {
-            transform: translateY(2px);
-            box-shadow: 
-                0 2px 0 rgba(0, 0, 0, 0.2),
-                0 4px 10px rgba(52, 152, 219, 0.3);
-        }
-        
-        .message {
-            text-align: center;
-            margin-top: 18px;
-            font-size: 11px;
-            min-height: 25px;
-            transition: all 0.3s ease;
-            padding: 8px;
-            border-radius: 8px;
-        }
-        
-        .message.success {
-            color: #2ecc71;
-            background: rgba(46, 204, 113, 0.1);
-        }
-        
-        .message.error {
-            color: #e74c3c;
-            background: rgba(231, 76, 60, 0.1);
-        }
-        
-        /* 拼豆关卡卡片 */
-        .levels {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 30px;
-            margin-bottom: 40px;
-            justify-content: center;
-        }
-        
-        .bead-card {
-            background: rgba(255, 255, 255, 0.9);
-            border: 6px solid rgba(0, 0, 0, 0.15);
-            border-radius: 20px;
-            padding: 35px;
-            text-align: center;
-            transition: all 0.4s ease;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 
-                0 8px 0 rgba(0, 0, 0, 0.1),
-                0 12px 30px rgba(0, 0, 0, 0.2),
-                inset 0 2px 4px rgba(255, 255, 255, 0.8);
-        }
-        
-        body.stage-1 .bead-card,
-        body.stage-2 .bead-card,
-        body.stage-3 .bead-card {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-        
-        /* 拼豆顶部装饰条 */
-        .bead-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 12px;
-            background-image: 
-                radial-gradient(circle at center, currentColor 40%, transparent 40%);
-            background-size: 16px 12px;
-            opacity: 0.6;
-        }
-        
-        .bead-card.level-1::before {
-            color: #2c3e50;
-        }
-        
-        .bead-card.level-2::before {
-            color: #3498db;
-        }
-        
-        .bead-card.level-3::before {
-            color: #e74c3c;
-        }
-        
-        .bead-card.locked {
-            display: none; /* 完全隐藏未解锁关卡 */
-        }
-        
-        .bead-card.unlocked {
-            opacity: 1;
-            filter: grayscale(0%);
-            display: block;
-        }
-        
-        .bead-card:hover:not(.locked) {
-            transform: translateY(-8px);
-            box-shadow: 
-                0 12px 0 rgba(0, 0, 0, 0.15),
-                0 20px 50px rgba(0, 0, 0, 0.3);
-            border-color: rgba(255, 255, 255, 0.4);
-        }
-        
-        .level-number {
-            font-size: 64px;
-            margin-bottom: 18px;
-            text-shadow: 
-                3px 3px 0 rgba(0, 0, 0, 0.15),
-                -1px -1px 0 rgba(255, 255, 255, 0.3);
-        }
-        
-        body.stage-0 .level-number {
-            color: #2c3e50;
-        }
-        
-        body.stage-1 .level-number,
-        body.stage-2 .level-number,
-        body.stage-3 .level-number {
-            color: #ecf0f1;
-        }
-        
-        .level-title {
-            font-size: 18px;
-            margin-bottom: 12px;
-            letter-spacing: 1px;
-        }
-        
-        body.stage-0 .level-title {
-            color: #34495e;
-        }
-        
-        .level-desc {
-            font-size: 10px;
-            margin-bottom: 22px;
-            line-height: 1.8;
-            opacity: 0.9;
-        }
-        
-        .level-status {
-            display: inline-block;
-            padding: 10px 22px;
-            border-radius: 25px;
-            font-size: 9px;
-            margin-bottom: 18px;
-            font-weight: bold;
-            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
-        }
-        
-        .status-locked {
-            background: rgba(149, 165, 166, 0.4);
-            color: rgba(255, 255, 255, 0.7);
-        }
-        
-        .status-unlocked {
-            background: rgba(46, 204, 113, 0.9);
-            color: white;
-            border: 3px solid rgba(39, 174, 96, 0.5);
-        }
-        
-        .play-btn {
-            display: inline-block;
-            background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);
-            color: white;
-            padding: 18px 40px;
-            text-decoration: none;
-            border-radius: 12px;
-            font-size: 12px;
-            transition: all 0.3s ease;
-            border: 4px solid rgba(0, 0, 0, 0.2);
-            box-shadow: 
-                0 6px 0 rgba(0, 0, 0, 0.15),
-                0 10px 25px rgba(52, 152, 219, 0.3);
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-        }
-        
-        body.stage-0 .play-btn {
-            background: linear-gradient(180deg, #34495e 0%, #2c3e50 100%);
-            box-shadow: 
-                0 6px 0 rgba(0, 0, 0, 0.15),
-                0 10px 25px rgba(44, 62, 80, 0.2);
-        }
-        
-        .play-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 
-                0 8px 0 rgba(0, 0, 0, 0.15),
-                0 14px 35px rgba(52, 152, 219, 0.4);
-        }
-        
-        .play-btn:active {
-            transform: translateY(2px);
-            box-shadow: 
-                0 2px 0 rgba(0, 0, 0, 0.15),
-                0 6px 15px rgba(52, 152, 219, 0.2);
-        }
-        
-        .locked-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 56px;
-            opacity: 0.3;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        
-        .info-section {
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 16px;
-            padding: 25px;
-            font-size: 10px;
-            line-height: 2;
-            margin-top: 25px;
-            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        body.stage-0 .info-section {
-            background: rgba(0, 0, 0, 0.04);
-            color: #2c3e50;
-        }
-        
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 28px;
-                letter-spacing: 2px;
-            }
-            
-            .levels {
-                grid-template-columns: 1fr;
-            }
-            
-            .key-input {
-                width: 170px;
-                font-size: 14px;
-                margin-bottom: 15px;
-            }
-            
-            .submit-key-btn {
-                font-size: 11px;
-                padding: 14px 28px;
-            }
-        }
-    </style>
-</head>
-<body class="stage-0">
-    <div class="pegboard">
-        <div class="pegboard-content">
-            <h1>🎨 SPLICING</h1>
-            <p class="subtitle">拼豆像素之旅 - 从黑白到彩色</p>
-            
-            <!-- 拼豆进度条 -->
-            <div class="progress-container">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-                </div>
-            </div>
-            
-            <!-- 密钥输入区 -->
-            <div class="key-input-section">
-                <label for="keyInput">🔑 输入通关密钥解锁下一关卡</label>
-                <input type="text" id="keyInput" class="key-input" placeholder="输入密钥" maxlength="4">
-                <button class="submit-key-btn" onclick="submitKey()">提交</button>
-                <div class="message" id="message"></div>
-            </div>
-            
-            <!-- 拼豆关卡卡片 -->
-            <div class="levels">
-                <!-- Level 1 -->
-                <div class="bead-card level-1 unlocked" id="level1" data-level="1">
-                    <div class="level-number">01</div>
-                    <div class="level-title">黑白世界</div>
-                    <div class="level-desc">
-                        平台跳跃冒险<br>
-                        探索纯粹的黑白拼豆世界<br>
-                        通关密钥: 1030
-                    </div>
-                    <div class="level-status status-unlocked">🔓 已解锁</div>
-                    <br>
-                    <a href="level-1/level1.html" class="play-btn">
-                        开始游戏 →
-                    </a>
-                </div>
+<!DOCTYPE html><!DOCTYPE html>
+
+<html lang="zh-CN"><html lang="zh-CN">
+
+<head><head>
+
+    <meta charset="UTF-8">    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Splicing - 拼豆像素之旅</title>    <title>Splicing - 拼豆像素之旅</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+    <style>    <style>
+
+        * {        * {
+
+            margin: 0;            margin: 0;
+
+            padding: 0;            padding: 0;
+
+            box-sizing: border-box;            box-sizing: border-box;
+
+        }        }
+
                 
-                <!-- Level 2 -->
-                <div class="bead-card level-2 locked" id="level2" data-level="2">
-                    <div class="locked-overlay">🔒</div>
-                    <div class="level-number">02</div>
-                    <div class="level-title">冷色觉醒</div>
-                    <div class="level-desc">
-                        魔法猫咪冒险<br>
-                        解锁蓝绿拼豆双色世界<br>
-                        需要Level 1通关密钥
-                    </div>
-                    <div class="level-status status-locked">🔒 已锁定</div>
-                    <br>
-                    <a href="level-2/level2.html" class="play-btn">
-                        开始游戏 →
-                    </a>
-                </div>
-                
-                <!-- Level 3 -->
-                <div class="bead-card level-3 locked" id="level3" data-level="3">
-                    <div class="locked-overlay">🔒</div>
-                    <div class="level-number">03</div>
-                    <div class="level-title">暖色绽放</div>
-                    <div class="level-desc">
-                        手势追踪收集<br>
-                        解锁完整彩色拼豆世界<br>
-                        需要Level 2通关密钥
-                    </div>
-                    <div class="level-status status-locked">🔒 已锁定</div>
-                    <br>
-                    <a href="level-3/index.html" class="play-btn">
-                        开始游戏 →
-                    </a>
-                </div>
-            </div>
-            
-            <!-- 信息区域 -->
-            <div class="info-section" id="infoSection">
-                <strong>📖 当前状态：</strong> 初始阶段 - 仅Level 1可用<br>
-                <strong>🎯 任务：</strong> 完成Level 1并获取通关密钥<br>
-                <strong>💡 提示：</strong> 每完成一关，拼豆板将获得新的色彩...
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        // 关卡密钥配置
-        const KEYS = {
-            1: '1030',
-            2: '0218',
-            3: '1218'
-        };
-        
-        // 从 localStorage 读取游戏状态
-        function loadState() {
-            const saved = localStorage.getItem('splicing_state_v1');
-            if (saved) {
-                try {
-                    return JSON.parse(saved);
-                } catch(e) {
-                    return { stage: 0, unlockedLevels: [1] };
+
+        body {        body {
+
+            font-family: 'Press Start 2P', 'Courier New', monospace;            font-family: 'Press Start 2P', 'Courier New', monospace;
+
+            width: 100vw;            min-height: 100vh;
+
+            height: 100vh;            display: flex;
+
+            display: flex;            align-items: center;
+
+            align-items: center;            justify-content: center;
+
+            justify-content: center;            padding: 0;
+
+            transition: background 1s ease;            margin: 0;
+
+            position: relative;            transition: background 0.8s ease;
+
+            overflow: hidden;            position: relative;
+
+        }            overflow: hidden;
+
                 }
-            }
-            return { stage: 0, unlockedLevels: [1] };
-        }
-        
-        // 保存游戏状态
-        function saveState(state) {
-            localStorage.setItem('splicing_state_v1', JSON.stringify(state));
-        }
-        
-        // 当前状态
-        let gameState = loadState();
-        
-        // 更新UI
-        function updateUI() {
-            const body = document.body;
-            const progressFill = document.getElementById('progressFill');
-            const infoSection = document.getElementById('infoSection');
+
+        /* 拼豆板背景网格 */        
+
+        body::before {        /* 拼豆板背景网格 */
+
+            content: '';        body::before {
+
+            position: fixed;            content: '';
+
+            top: 0;            position: fixed;
+
+            left: 0;            top: 0;
+
+            right: 0;            left: 0;
+
+            bottom: 0;            right: 0;
+
+            background-image:             bottom: 0;
+
+                radial-gradient(circle at center, rgba(0,0,0,0.12) 1.5px, transparent 1.5px);            background-image: 
+
+            background-size: 20px 20px;                radial-gradient(circle at center, rgba(0,0,0,0.12) 1.5px, transparent 1.5px);
+
+            opacity: 0.4;            background-size: 20px 20px;
+
+            pointer-events: none;            opacity: 0.4;
+
+            z-index: 0;            pointer-events: none;
+
+        }            z-index: 0;
+
+                }
+
+        /* Stage 0: 纯白初始 */        
+
+        body.stage-0 {        /* Stage 0: 初始状态 - 浅灰拼豆板 */
+
+            background: #ffffff;        body.stage-0 {
+
+            color: #2c3e50;            background: #e8e8e8;
+
+        }            color: #2c3e50;
+
+                }
+
+        /* Stage 1: 黑白灰 */        
+
+        body.stage-1 {        body.stage-0::after {
+
+            background: linear-gradient(135deg, #2c2c2c 0%, #4a4a4a 100%);            content: '';
+
+            color: #ecf0f1;            position: fixed;
+
+        }            top: 0;
+
+                    left: 0;
+
+        body.stage-1::after {            right: 0;
+
+            content: '';            bottom: 0;
+
+            position: fixed;            background-image: 
+
+            top: 0;                radial-gradient(circle at 25% 25%, rgba(255,255,255,0.3) 0%, transparent 50%),
+
+            left: 0;                radial-gradient(circle at 75% 75%, rgba(200,200,200,0.2) 0%, transparent 50%);
+
+            right: 0;            z-index: 0;
+
+            bottom: 0;            pointer-events: none;
+
+            background-image:         }
+
+                radial-gradient(circle at 30% 40%, rgba(80,80,80,0.4) 0%, transparent 40%),        
+
+                radial-gradient(circle at 70% 60%, rgba(100,100,100,0.4) 0%, transparent 40%);        /* Stage 1: Level 1 解锁 - 黑白灰拼豆 */
+
+            z-index: 0;        body.stage-1 {
+
+            pointer-events: none;            background: #3a3a3a;
+
+        }            color: #ecf0f1;
+
+                }
+
+        /* Stage 2: 黑白灰 + 蓝绿 */        
+
+        body.stage-2 {        body.stage-1::after {
+
+            background: linear-gradient(135deg, #2c3e50 0%, #2980b9 50%, #27ae60 100%);            content: '';
+
+            color: #ecf0f1;            position: fixed;
+
+        }            top: 0;
+
+                    left: 0;
+
+        body.stage-2::after {            right: 0;
+
+            content: '';            bottom: 0;
+
+            position: fixed;            background-image: 
+
+            top: 0;                radial-gradient(circle at 30% 40%, rgba(80,80,80,0.5) 0%, transparent 40%),
+
+            left: 0;                radial-gradient(circle at 70% 60%, rgba(100,100,100,0.5) 0%, transparent 40%);
+
+            right: 0;            z-index: 0;
+
+            bottom: 0;            pointer-events: none;
+
+            background-image:         }
+
+                radial-gradient(circle at 20% 30%, rgba(41,128,185,0.5) 0%, transparent 35%),        
+
+                radial-gradient(circle at 80% 70%, rgba(39,174,96,0.5) 0%, transparent 35%);        /* Stage 2: Level 2 解锁 - 黑白灰 + 蓝绿拼豆 */
+
+            z-index: 0;        body.stage-2 {
+
+            pointer-events: none;            background: #2c3e50;
+
+        }            color: #ecf0f1;
+
+                }
+
+        /* Stage 3: 完整彩色 */        
+
+        body.stage-3 {        body.stage-2::after {
+
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 75%, #4facfe 100%);            content: '';
+
+            color: #ffffff;            position: fixed;
+
+        }            top: 0;
+
+                    left: 0;
+
+        body.stage-3::after {            right: 0;
+
+            content: '';            bottom: 0;
+
+            position: fixed;            background-image: 
+
+            top: 0;                radial-gradient(circle at 20% 30%, rgba(41,128,185,0.4) 0%, transparent 35%),
+
+            left: 0;                radial-gradient(circle at 80% 70%, rgba(39,174,96,0.4) 0%, transparent 35%),
+
+            right: 0;                radial-gradient(circle at 50% 50%, rgba(100,100,100,0.2) 0%, transparent 50%);
+
+            bottom: 0;            z-index: 0;
+
+            background-image:             pointer-events: none;
+
+                radial-gradient(circle at 15% 20%, rgba(102,126,234,0.5) 0%, transparent 30%),        }
+
+                radial-gradient(circle at 85% 80%, rgba(240,147,251,0.5) 0%, transparent 30%),        
+
+                radial-gradient(circle at 50% 10%, rgba(255,159,124,0.4) 0%, transparent 35%),        /* Stage 3: Level 3 解锁 - 完整彩色拼豆 */
+
+                radial-gradient(circle at 70% 50%, rgba(79,172,254,0.4) 0%, transparent 30%);        body.stage-3 {
+
+            z-index: 0;            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+            pointer-events: none;            color: #ffffff;
+
+            animation: colorPulse 3s ease-in-out infinite;        }
+
+        }        
+
+                body.stage-3::after {
+
+        @keyframes colorPulse {            content: '';
+
+            0%, 100% { opacity: 0.6; }            position: fixed;
+
+            50% { opacity: 0.8; }            top: 0;
+
+        }            left: 0;
+
+                    right: 0;
+
+        /* 主容器 - 1920×1080 */            bottom: 0;
+
+        .container {            background-image: 
+
+            width: 100vw;                radial-gradient(circle at 15% 20%, rgba(102,126,234,0.5) 0%, transparent 30%),
+
+            height: 100vh;                radial-gradient(circle at 85% 80%, rgba(240,147,251,0.5) 0%, transparent 30%),
+
+            max-width: 1920px;                radial-gradient(circle at 50% 10%, rgba(255,159,124,0.4) 0%, transparent 35%),
+
+            max-height: 1080px;                radial-gradient(circle at 70% 50%, rgba(79,172,254,0.4) 0%, transparent 30%),
+
+            aspect-ratio: 16 / 9;                radial-gradient(circle at 30% 80%, rgba(243,156,18,0.3) 0%, transparent 25%);
+
+            display: flex;            z-index: 0;
+
+            flex-direction: column;            pointer-events: none;
+
+            align-items: center;        }
+
+            justify-content: center;        
+
+            padding: 80px;        /* 拼豆板主容器 - 1920x1080 比例 */
+
+            position: relative;        .pegboard {
+
+            z-index: 1;            width: 100vw;
+
+        }            height: 100vh;
+
+                    max-width: 1920px;
+
+        /* 标题 */            max-height: 1080px;
+
+        h1 {            aspect-ratio: 16 / 9;
+
+            font-size: 64px;            background: rgba(255, 255, 255, 0.95);
+
+            margin-bottom: 20px;            padding: 24px;
+
+            text-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);            box-shadow: 
+
+            letter-spacing: 8px;                0 0 0 12px rgba(50, 50, 50, 0.15),
+
+            animation: fadeInDown 1s ease;                0 8px 0 12px rgba(40, 40, 40, 0.1),
+
+        }                0 30px 80px rgba(0, 0, 0, 0.4),
+
+                        inset 0 2px 4px rgba(255, 255, 255, 0.8),
+
+        body.stage-3 h1 {                inset 0 -2px 4px rgba(0, 0, 0, 0.1);
+
+            animation: rainbow 3s ease-in-out infinite, float 2s ease-in-out infinite;            transition: all 0.8s ease;
+
+        }            position: relative;
+
+                    z-index: 1;
+
+        @keyframes rainbow {            overflow-y: auto;
+
+            0%, 100% { color: #667eea; }        }
+
+            25% { color: #f093fb; }        
+
+            50% { color: #4facfe; }        body.stage-0 .pegboard {
+
+            75% { color: #feca57; }            background: rgba(255, 255, 255, 0.98);
+
+        }            box-shadow: 
+
+                        0 0 0 12px rgba(180, 180, 180, 0.3),
+
+        @keyframes float {                0 6px 0 12px rgba(160, 160, 160, 0.2),
+
+            0%, 100% { transform: translateY(0); }                0 15px 40px rgba(0, 0, 0, 0.15),
+
+            50% { transform: translateY(-10px); }                inset 0 2px 4px rgba(255, 255, 255, 1);
+
+        }        }
+
+                
+
+        .subtitle {        body.stage-1 .pegboard {
+
+            font-size: 16px;            background: rgba(70, 70, 70, 0.95);
+
+            margin-bottom: 60px;            box-shadow: 
+
+            opacity: 0.8;                0 0 0 12px rgba(30, 30, 30, 0.5),
+
+            animation: fadeIn 1.5s ease;                0 8px 0 12px rgba(20, 20, 20, 0.4),
+
+        }                0 30px 80px rgba(0, 0, 0, 0.6),
+
+                        inset 0 2px 4px rgba(100, 100, 100, 0.5);
+
+        /* 密钥输入区 */        }
+
+        .key-section {        
+
+            background: rgba(255, 255, 255, 0.15);        body.stage-2 .pegboard {
+
+            backdrop-filter: blur(10px);            background: rgba(52, 73, 94, 0.95);
+
+            padding: 40px 60px;            box-shadow: 
+
+            border-radius: 20px;                0 0 0 12px rgba(30, 50, 70, 0.5),
+
+            margin-bottom: 60px;                0 8px 0 12px rgba(20, 40, 60, 0.4),
+
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);                0 30px 80px rgba(0, 0, 0, 0.5),
+
+            animation: fadeInUp 1s ease;                inset 0 2px 4px rgba(70, 100, 120, 0.5);
+
+        }        }
+
+                
+
+        body.stage-0 .key-section {        body.stage-3 .pegboard {
+
+            background: rgba(0, 0, 0, 0.05);            background: rgba(102, 126, 234, 0.25);
+
+        }            backdrop-filter: blur(20px);
+
+                    box-shadow: 
+
+        .key-section label {                0 0 0 12px rgba(102, 126, 234, 0.3),
+
+            display: block;                0 8px 0 12px rgba(118, 75, 162, 0.3),
+
+            font-size: 14px;                0 30px 80px rgba(0, 0, 0, 0.4),
+
+            margin-bottom: 20px;                inset 0 2px 4px rgba(255, 255, 255, 0.3);
+
+            text-align: center;        }
+
+        }        
+
+                /* 内部拼豆板内容区 */
+
+        .key-input-group {        .pegboard-content {
+
+            display: flex;            background: rgba(255, 255, 255, 0.1);
+
+            gap: 20px;            border-radius: 24px;
+
+            align-items: center;            padding: 60px 80px;
+
+            justify-content: center;            position: relative;
+
+        }            min-height: calc(100vh - 48px);
+
+                    max-height: calc(1080px - 48px);
+
+        .key-input {        }
+
+            width: 250px;        
+
+            padding: 18px;        body.stage-0 .pegboard-content {
+
+            font-family: 'Press Start 2P', monospace;            background: rgba(0, 0, 0, 0.02);
+
+            font-size: 18px;        }
+
+            text-align: center;        
+
+            border: 4px solid rgba(0, 0, 0, 0.3);        body.stage-1 .pegboard-content {
+
+            border-radius: 10px;            background: rgba(255, 255, 255, 0.05);
+
+            background: rgba(255, 255, 255, 0.95);        }
+
+            color: #2c3e50;        
+
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.1);        body.stage-2 .pegboard-content {
+
+            transition: all 0.3s ease;            background: rgba(255, 255, 255, 0.08);
+
+        }        }
+
+                
+
+        .key-input:focus {        body.stage-3 .pegboard-content {
+
+            outline: none;            background: rgba(255, 255, 255, 0.15);
+
+            border-color: #3498db;        }
+
+            box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.2);        
+
+        }        h1 {
+
+                    text-align: center;
+
+        .submit-btn {            margin-bottom: 15px;
+
+            padding: 18px 40px;            font-size: 40px;
+
+            font-family: 'Press Start 2P', monospace;            text-shadow: 
+
+            font-size: 14px;                3px 3px 0 rgba(0, 0, 0, 0.2),
+
+            border: none;                -1px -1px 0 rgba(255, 255, 255, 0.3);
+
+            border-radius: 10px;            transition: all 0.5s ease;
+
+            background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);            letter-spacing: 4px;
+
+            color: white;        }
+
+            cursor: pointer;        
+
+            box-shadow: 0 6px 0 #1e6fa8, 0 10px 25px rgba(52, 152, 219, 0.4);        body.stage-0 h1 {
+
+            transition: all 0.2s ease;            color: #2c3e50;
+
+        }            text-shadow: 
+
+                        2px 2px 0 rgba(0, 0, 0, 0.1),
+
+        .submit-btn:hover {                -1px -1px 0 rgba(255, 255, 255, 0.5);
+
+            transform: translateY(-3px);        }
+
+            box-shadow: 0 9px 0 #1e6fa8, 0 15px 30px rgba(52, 152, 219, 0.5);        
+
+        }        .subtitle {
+
+                    text-align: center;
+
+        .submit-btn:active {            margin-bottom: 35px;
+
+            transform: translateY(3px);            font-size: 11px;
+
+            box-shadow: 0 3px 0 #1e6fa8, 0 5px 15px rgba(52, 152, 219, 0.3);            opacity: 0.85;
+
+        }            letter-spacing: 1px;
+
+                }
+
+        .message {        
+
+            margin-top: 20px;        /* 拼豆进度条 */
+
+            font-size: 12px;        .progress-container {
+
+            min-height: 30px;            margin: 35px 0;
+
+            text-align: center;            padding: 8px;
+
+            padding: 10px;            background: rgba(0, 0, 0, 0.15);
+
+            border-radius: 8px;            border-radius: 20px;
+
+        }            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
+
+                }
+
+        .message.success {        
+
+            color: #2ecc71;        .progress-bar {
+
+            background: rgba(46, 204, 113, 0.15);            height: 24px;
+
+        }            background: rgba(255, 255, 255, 0.3);
+
+                    border-radius: 16px;
+
+        .message.error {            overflow: hidden;
+
+            color: #e74c3c;            position: relative;
+
+            background: rgba(231, 76, 60, 0.15);            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+
+        }        }
+
+                
+
+        /* 关卡容器 */        .progress-fill {
+
+        .levels-container {            height: 100%;
+
+            width: 100%;            background: linear-gradient(90deg, #2ecc71, #3498db, #9b59b6);
+
+            display: grid;            border-radius: 16px;
+
+            gap: 40px;            transition: width 0.8s ease;
+
+            animation: fadeInUp 1.2s ease;            position: relative;
+
+        }            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+                }
+
+        /* Stage 0: 单列 */        
+
+        body.stage-0 .levels-container {        /* 拼豆珠效果 */
+
+            grid-template-columns: 1fr;        .progress-fill::after {
+
+            max-width: 500px;            content: '';
+
+        }            position: absolute;
+
+                    top: 0;
+
+        /* Stage 1: 双列 */            left: 0;
+
+        body.stage-1 .levels-container {            right: 0;
+
+            grid-template-columns: repeat(2, 1fr);            bottom: 0;
+
+            max-width: 1100px;            background-image: 
+
+        }                radial-gradient(circle at center, rgba(255,255,255,0.5) 30%, transparent 30%);
+
+                    background-size: 12px 12px;
+
+        /* Stage 2 & 3: 三列 */            border-radius: 16px;
+
+        body.stage-2 .levels-container,        }
+
+        body.stage-3 .levels-container {        
+
+            grid-template-columns: repeat(3, 1fr);        /* 密钥输入区 - 拼豆框架风格 */
+
+            max-width: 1600px;        .key-input-section {
+
+        }            text-align: center;
+
+                    margin-bottom: 35px;
+
+        /* 关卡卡片 */            padding: 30px;
+
+        .level-card {            background: rgba(255, 255, 255, 0.15);
+
+            background: rgba(255, 255, 255, 0.95);            border-radius: 20px;
+
+            border-radius: 20px;            box-shadow: 
+
+            padding: 50px 40px;                inset 0 2px 8px rgba(0, 0, 0, 0.1),
+
+            text-align: center;                0 4px 12px rgba(0, 0, 0, 0.1);
+
+            box-shadow:         }
+
+                0 8px 0 rgba(0, 0, 0, 0.15),        
+
+                0 15px 40px rgba(0, 0, 0, 0.25);        body.stage-0 .key-input-section {
+
+            transition: all 0.4s ease;            background: rgba(0, 0, 0, 0.04);
+
+            position: relative;        }
+
+            overflow: hidden;        
+
+            animation: scaleIn 0.6s ease;        .key-input-section label {
+
+        }            display: block;
+
+                    margin-bottom: 18px;
+
+        body.stage-1 .level-card,            font-size: 13px;
+
+        body.stage-2 .level-card,            letter-spacing: 1px;
+
+        body.stage-3 .level-card {        }
+
+            background: rgba(255, 255, 255, 0.2);        
+
+            backdrop-filter: blur(10px);        .key-input {
+
+        }            width: 220px;
+
+                    padding: 16px;
+
+        .level-card:hover {            font-family: 'Press Start 2P', monospace;
+
+            transform: translateY(-10px);            font-size: 16px;
+
+            box-shadow:             text-align: center;
+
+                0 12px 0 rgba(0, 0, 0, 0.15),            border: 4px solid rgba(0, 0, 0, 0.2);
+
+                0 25px 60px rgba(0, 0, 0, 0.35);            border-radius: 12px;
+
+        }            background: rgba(255, 255, 255, 0.95);
+
+                    color: #2c3e50;
+
+        /* 卡片顶部色带 */            margin-right: 15px;
+
+        .level-card::before {            box-shadow: 
+
+            content: '';                inset 0 2px 6px rgba(0, 0, 0, 0.1),
+
+            position: absolute;                0 4px 0 rgba(0, 0, 0, 0.1);
+
+            top: 0;            transition: all 0.3s ease;
+
+            left: 0;        }
+
+            right: 0;        
+
+            height: 8px;        .key-input:focus {
+
+            background: currentColor;            outline: none;
+
+        }            border-color: #3498db;
+
+                    transform: translateY(-2px);
+
+        .level-card.level-1 {            box-shadow: 
+
+            color: #2c3e50;                inset 0 2px 6px rgba(52, 152, 219, 0.2),
+
+        }                0 6px 0 rgba(52, 152, 219, 0.2),
+
+                        0 8px 20px rgba(52, 152, 219, 0.3);
+
+        .level-card.level-2 {        }
+
+            color: #3498db;        
+
+        }        .submit-key-btn {
+
+                    padding: 16px 32px;
+
+        .level-card.level-3 {            font-family: 'Press Start 2P', monospace;
+
+            color: #e74c3c;            font-size: 13px;
+
+        }            border: 4px solid rgba(0, 0, 0, 0.3);
+
+                    border-radius: 12px;
+
+        /* 新解锁卡片动画 */            background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);
+
+        .level-card.new-unlock {            color: white;
+
+            animation: newUnlock 1s ease;            cursor: pointer;
+
+        }            transition: all 0.3s ease;
+
+                    box-shadow: 
+
+        @keyframes newUnlock {                0 6px 0 rgba(0, 0, 0, 0.2),
+
+            0% {                0 8px 20px rgba(52, 152, 219, 0.4);
+
+                transform: scale(0.8);            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+
+                opacity: 0;        }
+
+            }        
+
+            50% {        body.stage-0 .submit-key-btn {
+
+                transform: scale(1.1);            background: linear-gradient(180deg, #34495e 0%, #2c3e50 100%);
+
+            }            box-shadow: 
+
+            100% {                0 6px 0 rgba(0, 0, 0, 0.2),
+
+                transform: scale(1);                0 8px 20px rgba(44, 62, 80, 0.3);
+
+                opacity: 1;        }
+
+            }        
+
+        }        .submit-key-btn:hover {
+
+                    transform: translateY(-3px);
+
+        .level-number {            box-shadow: 
+
+            font-size: 72px;                0 8px 0 rgba(0, 0, 0, 0.2),
+
+            margin-bottom: 20px;                0 12px 25px rgba(52, 152, 219, 0.5);
+
+            text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.15);        }
+
+        }        
+
+                .submit-key-btn:active {
+
+        body.stage-0 .level-number {            transform: translateY(2px);
+
+            color: #2c3e50;            box-shadow: 
+
+        }                0 2px 0 rgba(0, 0, 0, 0.2),
+
+                        0 4px 10px rgba(52, 152, 219, 0.3);
+
+        body.stage-1 .level-number,        }
+
+        body.stage-2 .level-number,        
+
+        body.stage-3 .level-number {        .message {
+
+            color: #ecf0f1;            text-align: center;
+
+        }            margin-top: 18px;
+
+                    font-size: 11px;
+
+        .level-title {            min-height: 25px;
+
+            font-size: 22px;            transition: all 0.3s ease;
+
+            margin-bottom: 15px;            padding: 8px;
+
+        }            border-radius: 8px;
+
+                }
+
+        body.stage-0 .level-title {        
+
+            color: #34495e;        .message.success {
+
+        }            color: #2ecc71;
+
+                    background: rgba(46, 204, 113, 0.1);
+
+        .level-desc {        }
+
+            font-size: 11px;        
+
+            line-height: 1.8;        .message.error {
+
+            margin-bottom: 30px;            color: #e74c3c;
+
+            opacity: 0.9;            background: rgba(231, 76, 60, 0.1);
+
+        }        }
+
+                
+
+        .level-badge {        /* 拼豆关卡卡片 */
+
+            display: inline-block;        .levels {
+
+            padding: 10px 25px;            display: grid;
+
+            border-radius: 20px;            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+
+            font-size: 10px;            gap: 30px;
+
+            margin-bottom: 25px;            margin-bottom: 40px;
+
+            background: rgba(46, 204, 113, 0.9);            justify-content: center;
+
+            color: white;        }
+
+            box-shadow: 0 4px 0 rgba(39, 174, 96, 0.8);        
+
+        }        .bead-card {
+
+                    background: rgba(255, 255, 255, 0.9);
+
+        .level-badge.completed {            border: 6px solid rgba(0, 0, 0, 0.15);
+
+            background: rgba(149, 165, 166, 0.6);            border-radius: 20px;
+
+            box-shadow: 0 4px 0 rgba(127, 140, 141, 0.8);            padding: 35px;
+
+        }            text-align: center;
+
+                    transition: all 0.4s ease;
+
+        .play-btn {            position: relative;
+
+            display: inline-block;            overflow: hidden;
+
+            padding: 18px 45px;            box-shadow: 
+
+            font-family: 'Press Start 2P', monospace;                0 8px 0 rgba(0, 0, 0, 0.1),
+
+            font-size: 13px;                0 12px 30px rgba(0, 0, 0, 0.2),
+
+            text-decoration: none;                inset 0 2px 4px rgba(255, 255, 255, 0.8);
+
+            border-radius: 12px;        }
+
+            background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);        
+
+            color: white;        body.stage-1 .bead-card,
+
+            box-shadow: 0 6px 0 #1e6fa8, 0 10px 25px rgba(52, 152, 219, 0.4);        body.stage-2 .bead-card,
+
+            transition: all 0.2s ease;        body.stage-3 .bead-card {
+
+        }            background: rgba(255, 255, 255, 0.15);
+
+                    border-color: rgba(255, 255, 255, 0.2);
+
+        .play-btn:hover {        }
+
+            transform: translateY(-3px);        
+
+            box-shadow: 0 9px 0 #1e6fa8, 0 15px 30px rgba(52, 152, 219, 0.5);        /* 拼豆顶部装饰条 */
+
+        }        .bead-card::before {
+
+                    content: '';
+
+        .play-btn:active {            position: absolute;
+
+            transform: translateY(3px);            top: 0;
+
+            box-shadow: 0 3px 0 #1e6fa8, 0 5px 15px rgba(52, 152, 219, 0.3);            left: 0;
+
+        }            right: 0;
+
+                    height: 12px;
+
+        /* 进度指示 */            background-image: 
+
+        .progress-info {                radial-gradient(circle at center, currentColor 40%, transparent 40%);
+
+            position: fixed;            background-size: 16px 12px;
+
+            bottom: 40px;            opacity: 0.6;
+
+            left: 50%;        }
+
+            transform: translateX(-50%);        
+
+            font-size: 12px;        .bead-card.level-1::before {
+
+            padding: 15px 30px;            color: #2c3e50;
+
+            background: rgba(0, 0, 0, 0.5);        }
+
+            backdrop-filter: blur(10px);        
+
+            border-radius: 25px;        .bead-card.level-2::before {
+
+            z-index: 10;            color: #3498db;
+
+        }        }
+
+                
+
+        /* 完成庆祝 */        .bead-card.level-3::before {
+
+        .celebration {            color: #e74c3c;
+
+            display: none;        }
+
+            position: fixed;        
+
+            top: 50%;        .bead-card.locked {
+
+            left: 50%;            display: none; /* 完全隐藏未解锁关卡 */
+
+            transform: translate(-50%, -50%);        }
+
+            font-size: 48px;        
+
+            animation: celebration 2s ease;        .bead-card.unlocked {
+
+            z-index: 100;            opacity: 1;
+
+        }            filter: grayscale(0%);
+
+                    display: block;
+
+        body.stage-3 .celebration {        }
+
+            display: block;        
+
+        }        .bead-card:hover:not(.locked) {
+
+                    transform: translateY(-8px);
+
+        @keyframes celebration {            box-shadow: 
+
+            0% {                0 12px 0 rgba(0, 0, 0, 0.15),
+
+                transform: translate(-50%, -50%) scale(0);                0 20px 50px rgba(0, 0, 0, 0.3);
+
+                opacity: 0;            border-color: rgba(255, 255, 255, 0.4);
+
+            }        }
+
+            50% {        
+
+                transform: translate(-50%, -50%) scale(1.2);        .level-number {
+
+                opacity: 1;            font-size: 64px;
+
+            }            margin-bottom: 18px;
+
+            100% {            text-shadow: 
+
+                transform: translate(-50%, -50%) scale(1);                3px 3px 0 rgba(0, 0, 0, 0.15),
+
+                opacity: 1;                -1px -1px 0 rgba(255, 255, 255, 0.3);
+
+            }        }
+
+        }        
+
+                body.stage-0 .level-number {
+
+        @keyframes fadeIn {            color: #2c3e50;
+
+            from { opacity: 0; }        }
+
+            to { opacity: 1; }        
+
+        }        body.stage-1 .level-number,
+
+                body.stage-2 .level-number,
+
+        @keyframes fadeInDown {        body.stage-3 .level-number {
+
+            from {            color: #ecf0f1;
+
+                opacity: 0;        }
+
+                transform: translateY(-30px);        
+
+            }        .level-title {
+
+            to {            font-size: 18px;
+
+                opacity: 1;            margin-bottom: 12px;
+
+                transform: translateY(0);            letter-spacing: 1px;
+
+            }        }
+
+        }        
+
+                body.stage-0 .level-title {
+
+        @keyframes fadeInUp {            color: #34495e;
+
+            from {        }
+
+                opacity: 0;        
+
+                transform: translateY(30px);        .level-desc {
+
+            }            font-size: 10px;
+
+            to {            margin-bottom: 22px;
+
+                opacity: 1;            line-height: 1.8;
+
+                transform: translateY(0);            opacity: 0.9;
+
+            }        }
+
+        }        
+
+                .level-status {
+
+        @keyframes scaleIn {            display: inline-block;
+
+            from {            padding: 10px 22px;
+
+                opacity: 0;            border-radius: 25px;
+
+                transform: scale(0.9);            font-size: 9px;
+
+            }            margin-bottom: 18px;
+
+            to {            font-weight: bold;
+
+                opacity: 1;            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
+
+                transform: scale(1);        }
+
+            }        
+
+        }        .status-locked {
+
+    </style>            background: rgba(149, 165, 166, 0.4);
+
+</head>            color: rgba(255, 255, 255, 0.7);
+
+<body class="stage-0">        }
+
+    <div class="celebration">🎉 恭喜通关！🎉</div>        
+
+            .status-unlocked {
+
+    <div class="container">            background: rgba(46, 204, 113, 0.9);
+
+        <h1>SPLICING</h1>            color: white;
+
+        <p class="subtitle">拼豆像素之旅 - 从黑白到彩色</p>            border: 3px solid rgba(39, 174, 96, 0.5);
+
+                }
+
+        <!-- 密钥输入区 -->        
+
+        <div class="key-section">        .play-btn {
+
+            <label for="keyInput">🔑 输入通关密钥解锁新世界</label>            display: inline-block;
+
+            <div class="key-input-group">            background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);
+
+                <input type="text" id="keyInput" class="key-input" placeholder="输入4位密钥" maxlength="4">            color: white;
+
+                <button class="submit-btn" onclick="submitKey()">提交</button>            padding: 18px 40px;
+
+            </div>            text-decoration: none;
+
+            <div class="message" id="message"></div>            border-radius: 12px;
+
+        </div>            font-size: 12px;
+
+                    transition: all 0.3s ease;
+
+        <!-- 关卡容器 -->            border: 4px solid rgba(0, 0, 0, 0.2);
+
+        <div class="levels-container" id="levelsContainer">            box-shadow: 
+
+            <!-- Level 1 - 始终显示 -->                0 6px 0 rgba(0, 0, 0, 0.15),
+
+            <div class="level-card level-1" data-level="1">                0 10px 25px rgba(52, 152, 219, 0.3);
+
+                <div class="level-number">01</div>            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+
+                <div class="level-title">黑白世界</div>        }
+
+                <div class="level-desc">        
+
+                    平台跳跃冒险<br>        body.stage-0 .play-btn {
+
+                    探索纯粹的黑白拼豆世界<br>            background: linear-gradient(180deg, #34495e 0%, #2c3e50 100%);
+
+                    通关密钥: 1030            box-shadow: 
+
+                </div>                0 6px 0 rgba(0, 0, 0, 0.15),
+
+                <div class="level-badge">🔓 已解锁</div>                0 10px 25px rgba(44, 62, 80, 0.2);
+
+                <br>        }
+
+                <a href="level-1/level1.html" class="play-btn">开始游戏 →</a>        
+
+            </div>        .play-btn:hover {
+
+        </div>            transform: translateY(-3px);
+
+                    box-shadow: 
+
+        <div class="progress-info" id="progressInfo">                0 8px 0 rgba(0, 0, 0, 0.15),
+
+            Stage 0/3 - 开始你的旅程                0 14px 35px rgba(52, 152, 219, 0.4);
+
+        </div>        }
+
+    </div>        
+
+            .play-btn:active {
+
+    <script>            transform: translateY(2px);
+
+        // 关卡密钥            box-shadow: 
+
+        const KEYS = {                0 2px 0 rgba(0, 0, 0, 0.15),
+
+            1: '1030',                0 6px 15px rgba(52, 152, 219, 0.2);
+
+            2: '0218',        }
+
+            3: '1218'        
+
+        };        .locked-overlay {
+
+                    position: absolute;
+
+        // 关卡数据            top: 50%;
+
+        const LEVELS = {            left: 50%;
+
+            1: {            transform: translate(-50%, -50%);
+
+                number: '01',            font-size: 56px;
+
+                title: '黑白世界',            opacity: 0.3;
+
+                desc: '平台跳跃冒险<br>探索纯粹的黑白拼豆世界<br>通关密钥: 1030',            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+
+                link: 'level-1/level1.html',        }
+
+                class: 'level-1'        
+
+            },        .info-section {
+
+            2: {            background: rgba(255, 255, 255, 0.15);
+
+                number: '02',            border-radius: 16px;
+
+                title: '冷色觉醒',            padding: 25px;
+
+                desc: '魔法猫咪冒险<br>解锁蓝绿拼豆双色世界<br>通关密钥: 0218',            font-size: 10px;
+
+                link: 'level-2/level2.html',            line-height: 2;
+
+                class: 'level-2'            margin-top: 25px;
+
+            },            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.1);
+
+            3: {        }
+
+                number: '03',        
+
+                title: '暖色绽放',        body.stage-0 .info-section {
+
+                desc: '手势追踪收集<br>解锁完整彩色拼豆世界<br>通关密钥: 1218',            background: rgba(0, 0, 0, 0.04);
+
+                link: 'level-3/index.html',            color: #2c3e50;
+
+                class: 'level-3'        }
+
+            }        
+
+        };        @media (max-width: 768px) {
+
+                    h1 {
+
+        // 读取状态                font-size: 28px;
+
+        function loadState() {                letter-spacing: 2px;
+
+            const saved = localStorage.getItem('splicing_state_v1');            }
+
+            if (saved) {            
+
+                try {            .levels {
+
+                    return JSON.parse(saved);                grid-template-columns: 1fr;
+
+                } catch(e) {            }
+
+                    return { stage: 0, unlockedLevels: [1] };            
+
+                }            .key-input {
+
+            }                width: 170px;
+
+            return { stage: 0, unlockedLevels: [1] };                font-size: 14px;
+
+        }                margin-bottom: 15px;
+
+                    }
+
+        // 保存状态            
+
+        function saveState(state) {            .submit-key-btn {
+
+            localStorage.setItem('splicing_state_v1', JSON.stringify(state));                font-size: 11px;
+
+        }                padding: 14px 28px;
+
+                    }
+
+        let gameState = loadState();        }
+
+            </style>
+
+        // 渲染关卡卡片</head>
+
+        function renderLevels() {<body class="stage-0">
+
+            const container = document.getElementById('levelsContainer');    <div class="pegboard">
+
+            container.innerHTML = '';        <div class="pegboard-content">
+
+                        <h1>🎨 SPLICING</h1>
+
+            // 只渲染已解锁的关卡            <p class="subtitle">拼豆像素之旅 - 从黑白到彩色</p>
+
+            gameState.unlockedLevels.forEach((levelNum, index) => {            
+
+                const level = LEVELS[levelNum];            <!-- 拼豆进度条 -->
+
+                const isCompleted = gameState.unlockedLevels.includes(levelNum + 1) || levelNum === 3;            <div class="progress-container">
+
+                const isNew = index === gameState.unlockedLevels.length - 1 && levelNum > 1;                <div class="progress-bar">
+
+                                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+
+                const card = document.createElement('div');                </div>
+
+                card.className = `level-card ${level.class}${isNew ? ' new-unlock' : ''}`;            </div>
+
+                card.innerHTML = `            
+
+                    <div class="level-number">${level.number}</div>            <!-- 密钥输入区 -->
+
+                    <div class="level-title">${level.title}</div>            <div class="key-input-section">
+
+                    <div class="level-desc">${level.desc}</div>                <label for="keyInput">🔑 输入通关密钥解锁下一关卡</label>
+
+                    <div class="level-badge${isCompleted ? ' completed' : ''}">                <input type="text" id="keyInput" class="key-input" placeholder="输入密钥" maxlength="4">
+
+                        ${isCompleted ? '✓ 已完成' : '🔓 已解锁'}                <button class="submit-key-btn" onclick="submitKey()">提交</button>
+
+                    </div>                <div class="message" id="message"></div>
+
+                    <br>            </div>
+
+                    <a href="${level.link}" class="play-btn">开始游戏 →</a>            
+
+                `;            <!-- 拼豆关卡卡片 -->
+
+                container.appendChild(card);            <div class="levels">
+
+            });                <!-- Level 1 -->
+
+        }                <div class="bead-card level-1 unlocked" id="level1" data-level="1">
+
+                            <div class="level-number">01</div>
+
+        // 更新UI                    <div class="level-title">黑白世界</div>
+
+        function updateUI() {                    <div class="level-desc">
+
+            document.body.className = `stage-${gameState.stage}`;                        平台跳跃冒险<br>
+
+                                    探索纯粹的黑白拼豆世界<br>
+
+            // 更新进度信息                        通关密钥: 1030
+
+            const progressInfo = document.getElementById('progressInfo');                    </div>
+
+            const stageTexts = [                    <div class="level-status status-unlocked">🔓 已解锁</div>
+
+                'Stage 0/3 - 开始你的旅程',                    <br>
+
+                'Stage 1/3 - 黑白世界已开启',                    <a href="level-1/level1.html" class="play-btn">
+
+                'Stage 2/3 - 冷色世界已觉醒',                        开始游戏 →
+
+                'Stage 3/3 - 完整彩色世界！🎉'                    </a>
+
+            ];                </div>
+
+            progressInfo.textContent = stageTexts[gameState.stage];                
+
+                            <!-- Level 2 -->
+
+            // 重新渲染关卡                <div class="bead-card level-2 locked" id="level2" data-level="2">
+
+            renderLevels();                    <div class="locked-overlay">🔒</div>
+
+        }                    <div class="level-number">02</div>
+
+                            <div class="level-title">冷色觉醒</div>
+
+        // 提交密钥                    <div class="level-desc">
+
+        function submitKey() {                        魔法猫咪冒险<br>
+
+            const input = document.getElementById('keyInput');                        解锁蓝绿拼豆双色世界<br>
+
+            const key = input.value.trim();                        需要Level 1通关密钥
+
+                                </div>
+
+            if (!key) {                    <div class="level-status status-locked">🔒 已锁定</div>
+
+                showMessage('请输入密钥', 'error');                    <br>
+
+                return;                    <a href="level-2/level2.html" class="play-btn">
+
+            }                        开始游戏 →
+
+                                </a>
+
+            // 检查密钥                </div>
+
+            let levelUnlocked = null;                
+
+            for (let level in KEYS) {                <!-- Level 3 -->
+
+                const levelNum = parseInt(level);                <div class="bead-card level-3 locked" id="level3" data-level="3">
+
+                if (KEYS[level] === key && !gameState.unlockedLevels.includes(levelNum + 1)) {                    <div class="locked-overlay">🔒</div>
+
+                    levelUnlocked = levelNum + 1;                    <div class="level-number">03</div>
+
+                    break;                    <div class="level-title">暖色绽放</div>
+
+                }                    <div class="level-desc">
+
+            }                        手势追踪收集<br>
+
+                                    解锁完整彩色拼豆世界<br>
+
+            if (levelUnlocked) {                        需要Level 2通关密钥
+
+                // 解锁成功                    </div>
+
+                gameState.unlockedLevels.push(levelUnlocked);                    <div class="level-status status-locked">🔒 已锁定</div>
+
+                gameState.stage = levelUnlocked - 1;                    <br>
+
+                saveState(gameState);                    <a href="level-3/index.html" class="play-btn">
+
+                                        开始游戏 →
+
+                showMessage(`🎉 恭喜！Level ${levelUnlocked} 已解锁！`, 'success');                    </a>
+
+                                </div>
+
+                // 延迟更新UI以显示动画            </div>
+
+                setTimeout(() => {            
+
+                    updateUI();            <!-- 信息区域 -->
+
+                    input.value = '';            <div class="info-section" id="infoSection">
+
+                }, 800);                <strong>📖 当前状态：</strong> 初始阶段 - 仅Level 1可用<br>
+
+            } else {                <strong>🎯 任务：</strong> 完成Level 1并获取通关密钥<br>
+
+                showMessage('❌ 密钥错误或已使用', 'error');                <strong>💡 提示：</strong> 每完成一关，拼豆板将获得新的色彩...
+
+                input.value = '';            </div>
+
+            }        </div>
+
+        }    </div>
+
+            
+
+        // 显示消息    <script>
+
+        function showMessage(text, type) {        // 关卡密钥配置
+
+            const message = document.getElementById('message');        const KEYS = {
+
+            message.textContent = text;            1: '1030',
+
+            message.className = `message ${type}`;            2: '0218',
+
+                        3: '1218'
+
+            setTimeout(() => {        };
+
+                message.textContent = '';        
+
+                message.className = 'message';        // 从 localStorage 读取游戏状态
+
+            }, 3000);        function loadState() {
+
+        }            const saved = localStorage.getItem('splicing_state_v1');
+
+                    if (saved) {
+
+        // 回车提交                try {
+
+        document.getElementById('keyInput').addEventListener('keypress', (e) => {                    return JSON.parse(saved);
+
+            if (e.key === 'Enter') submitKey();                } catch(e) {
+
+        });                    return { stage: 0, unlockedLevels: [1] };
+
+                        }
+
+        // 初始化            }
+
+        updateUI();            return { stage: 0, unlockedLevels: [1] };
+
+                }
+
+        // 调试：重置游戏        
+
+        function resetGame() {        // 保存游戏状态
+
+            if (confirm('确定要重置游戏进度吗？')) {        function saveState(state) {
+
+                gameState = { stage: 0, unlockedLevels: [1] };            localStorage.setItem('splicing_state_v1', JSON.stringify(state));
+
+                saveState(gameState);        }
+
+                updateUI();        
+
+                console.log('游戏已重置');        // 当前状态
+
+            }        let gameState = loadState();
+
+        }        
+
+                // 更新UI
+
+        console.log('💡 提示：在控制台输入 resetGame() 可以重置游戏进度');        function updateUI() {
+
+    </script>            const body = document.body;
+
+</body>            const progressFill = document.getElementById('progressFill');
+
+</html>            const infoSection = document.getElementById('infoSection');
+
             
             // 更新阶段样式
             body.className = `stage-${gameState.stage}`;
