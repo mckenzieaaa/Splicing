@@ -34,7 +34,7 @@ let fingerTipPosition = null;
 let cameraInitialized = false; // Flag to prevent multiple camera initializations
 
 // Game settings
-let gameState = 'waiting_camera'; // waiting_camera, playing, level_complete, game_over, wrong, victory
+let gameState = 'waiting_camera'; // waiting_camera, playing, level_complete, game_over, wrong, victory, button_animation
 let score = 0;
 let level = 1;
 let currentTarget = 1;
@@ -42,6 +42,16 @@ let targets = [];
 let particles = [];
 const VICTORY_LEVEL = 5; // 完成第5关通关
 let secretCodeRevealed = false;
+
+// Button animation state
+let buttonAnimationState = {
+    active: false,
+    startTime: 0,
+    duration: 1000, // 1 second animation
+    position: { x: 0, y: 0 },
+    scale: 1,
+    rotation: 0
+};
 
 // Timing
 let targetTimer = 10.0;
@@ -377,19 +387,69 @@ function drawFingerIndicator() {
         const {x, y} = fingerTipPosition;
         const size = 16; // 16x16 pixel square
         
-        // Draw outer square (white border)
-        ctx.strokeStyle = COLORS.white;
-        ctx.lineWidth = 4;
+        // Check if touching button
+        const isTouchingButton = buttonTouchState.nextLevel || buttonTouchState.secretCode;
+        
+        // Enhanced visual when touching button
+        if (isTouchingButton) {
+            // Draw glowing pulse effect
+            const pulseSize = size * 3;
+            const time = Date.now() / 200;
+            const pulse = Math.sin(time) * 0.5 + 0.5;
+            
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, pulseSize * (1 + pulse * 0.3));
+            gradient.addColorStop(0, 'rgba(255, 214, 10, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(6, 255, 165, 0.5)');
+            gradient.addColorStop(1, 'rgba(6, 255, 165, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, pulseSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw rotating sparkles
+            for (let i = 0; i < 4; i++) {
+                const angle = time + (Math.PI * 2 * i) / 4;
+                const distance = size * 2.5;
+                const sparkleX = x + Math.cos(angle) * distance;
+                const sparkleY = y + Math.sin(angle) * distance;
+                const sparkleSize = 4 + pulse * 2;
+                
+                ctx.fillStyle = COLORS.success;
+                ctx.fillRect(sparkleX - sparkleSize/2, sparkleY - sparkleSize/2, sparkleSize, sparkleSize);
+            }
+        }
+        
+        // Draw outer square (enhanced when touching)
+        ctx.strokeStyle = isTouchingButton ? COLORS.success : COLORS.white;
+        ctx.lineWidth = isTouchingButton ? 6 : 4;
         ctx.strokeRect(x - size, y - size, size * 2, size * 2);
         
-        // Draw inner square (yellow)
-        ctx.fillStyle = COLORS.accent;
+        // Draw inner square (color changes when touching)
+        ctx.fillStyle = isTouchingButton ? COLORS.success : COLORS.accent;
         ctx.fillRect(x - size/2, y - size/2, size, size);
         
         // Draw crosshair (pixelated)
         ctx.fillStyle = COLORS.white;
         ctx.fillRect(x - 8, y - 2, 16, 4); // horizontal
         ctx.fillRect(x - 2, y - 8, 4, 16); // vertical
+        
+        // Draw connecting line to button when close
+        if (isTouchingButton && gameState === 'level_complete') {
+            const buttonPos = {
+                x: canvas.width / 2,
+                y: canvas.height / 2 + 80
+            };
+            
+            ctx.strokeStyle = COLORS.success;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 5]);
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(buttonPos.x, buttonPos.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
     }
 }
 
@@ -625,13 +685,18 @@ function update() {
         if (fingerTipPosition) {
             checkNextLevelTouch(); // Update touch state for visual feedback
             if (buttonTouchState.nextLevel && !fingerTouchedLastFrame) {
-                nextLevel();
+                // Start button animation instead of immediately going to next level
+                startButtonAnimation();
                 fingerTouchedLastFrame = true;
             }
         } else {
             buttonTouchState.nextLevel = false;
             fingerTouchedLastFrame = false;
         }
+    } else if (gameState === 'button_animation') {
+        // Update button animation
+        updateButtonAnimation();
+        fingerTouchedLastFrame = false;
     } else if (gameState === 'victory') {
         // Victory screen - no interaction needed, code already shown
         fingerTouchedLastFrame = false;
@@ -683,7 +748,7 @@ function draw() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Draw game elements on top of video
-    if (gameState !== 'victory') {
+    if (gameState !== 'victory' && gameState !== 'button_animation') {
         drawTargets();
     }
     
@@ -691,8 +756,17 @@ function draw() {
         particle.draw();
     }
     
-    // Draw finger indicator on top
-    drawFingerIndicator();
+    // Draw button animation if active
+    if (gameState === 'button_animation') {
+        drawButtonAnimation();
+    }
+    
+    // Draw finger indicator on top (including during button animation)
+    if (gameState === 'button_animation' || gameState === 'level_complete') {
+        drawFingerIndicator();
+    } else if (gameState !== 'victory') {
+        drawFingerIndicator();
+    }
 }
 
 // Reset game
@@ -715,6 +789,110 @@ function nextLevel() {
     particles = [];
     generateTargets();
     document.getElementById('levelCompleteModal').style.display = 'none';
+}
+
+// Start button animation
+function startButtonAnimation() {
+    buttonAnimationState.active = true;
+    buttonAnimationState.startTime = Date.now();
+    buttonAnimationState.position = {
+        x: canvas.width / 2,
+        y: canvas.height / 2 + 80
+    };
+    buttonAnimationState.scale = 1;
+    buttonAnimationState.rotation = 0;
+    gameState = 'button_animation';
+    
+    // Hide the modal immediately
+    document.getElementById('levelCompleteModal').style.display = 'none';
+    
+    // Create particles around button
+    for (let i = 0; i < 20; i++) {
+        const angle = (Math.PI * 2 * i) / 20;
+        particles.push(new Particle(
+            buttonAnimationState.position.x,
+            buttonAnimationState.position.y,
+            Math.cos(angle) * 3,
+            Math.sin(angle) * 3,
+            COLORS.accent
+        ));
+    }
+}
+
+// Update button animation
+function updateButtonAnimation() {
+    const elapsed = Date.now() - buttonAnimationState.startTime;
+    const progress = Math.min(elapsed / buttonAnimationState.duration, 1);
+    
+    // Scale up and spin
+    buttonAnimationState.scale = 1 + progress * 0.5;
+    buttonAnimationState.rotation = progress * Math.PI * 2;
+    
+    // Move upward slightly
+    buttonAnimationState.position.y = (canvas.height / 2 + 80) - progress * 50;
+    
+    // When animation completes, go to next level
+    if (progress >= 1) {
+        buttonAnimationState.active = false;
+        nextLevel();
+    }
+}
+
+// Draw button animation
+function drawButtonAnimation() {
+    if (!buttonAnimationState.active) return;
+    
+    const pos = buttonAnimationState.position;
+    const scale = buttonAnimationState.scale;
+    const rotation = buttonAnimationState.rotation;
+    
+    ctx.save();
+    ctx.translate(pos.x, pos.y);
+    ctx.rotate(rotation);
+    
+    // Draw glowing background
+    const elapsed = Date.now() - buttonAnimationState.startTime;
+    const progress = Math.min(elapsed / buttonAnimationState.duration, 1);
+    const glowSize = 100 * scale * (1 + Math.sin(progress * Math.PI * 4) * 0.2);
+    
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, glowSize);
+    gradient.addColorStop(0, 'rgba(255, 214, 10, 0.8)');
+    gradient.addColorStop(0.5, 'rgba(157, 78, 221, 0.4)');
+    gradient.addColorStop(1, 'rgba(157, 78, 221, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(-glowSize, -glowSize, glowSize * 2, glowSize * 2);
+    
+    // Draw animated coin
+    const coinSize = 60 * scale;
+    drawPixelCoin(0, 0, coinSize);
+    
+    // Draw sparkles
+    for (let i = 0; i < 8; i++) {
+        const angle = (Math.PI * 2 * i) / 8 + rotation;
+        const distance = 80 * scale * (1 + Math.sin(progress * Math.PI * 2) * 0.3);
+        const x = Math.cos(angle) * distance;
+        const y = Math.sin(angle) * distance;
+        const sparkleSize = 5 + Math.sin(progress * Math.PI * 4 + i) * 3;
+        
+        ctx.fillStyle = COLORS.accent;
+        ctx.beginPath();
+        ctx.arc(x, y, sparkleSize, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.restore();
+    
+    // Draw text
+    ctx.save();
+    ctx.fillStyle = COLORS.accent;
+    ctx.font = '24px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const alpha = 1 - progress * 0.5;
+    ctx.globalAlpha = alpha;
+    ctx.fillText('LEVEL UP!', canvas.width / 2, canvas.height / 2 - 50);
+    ctx.restore();
 }
 
 // Button touch state tracking
