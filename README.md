@@ -99,7 +99,7 @@ git checkout level-3
 - `eeeeee/game.js` (739 行)
 - `eeeeee/index.html` (31 行)
 - `eeeeee/style.css` (235 行)
-- 完成密码: `0218`
+- 完成密码: `1218`
 
 ### level-3: 手势追踪游戏 (level-3 分支)
 
@@ -115,15 +115,15 @@ git checkout level-3
 - `team-work/web_game/game.js` (842 行)
 - `team-work/web_game/index.html` (151 行)
 - `team-work/web_game/styles.css` (778 行)
-- 完成密码: `1218`
+- 完成密码: `0218`
 
 ## 🔑 游戏密码系统
 
 每个关卡完成后会显示一个密码，用于解锁下一关：
 
 - Level 1 → `1030`
-- Level 2 → `0218`  
-- Level 3 → `1218`
+- Level 2 → `1218`  
+- Level 3 → `0218`
 
 ## 👥 团队协作
 
