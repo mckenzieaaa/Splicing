@@ -18,10 +18,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 40px 20px;
+            padding: 0;
+            margin: 0;
             transition: background 0.8s ease;
             position: relative;
-            overflow-x: hidden;
+            overflow: hidden;
         }
         
         /* 拼豆板背景网格 */
@@ -124,12 +125,14 @@
             pointer-events: none;
         }
         
-        /* 拼豆板主容器 */
+        /* 拼豆板主容器 - 1920x1080 比例 */
         .pegboard {
-            max-width: 1200px;
-            width: 100%;
+            width: 100vw;
+            height: 100vh;
+            max-width: 1920px;
+            max-height: 1080px;
+            aspect-ratio: 16 / 9;
             background: rgba(255, 255, 255, 0.95);
-            border-radius: 32px;
             padding: 24px;
             box-shadow: 
                 0 0 0 12px rgba(50, 50, 50, 0.15),
@@ -140,6 +143,7 @@
             transition: all 0.8s ease;
             position: relative;
             z-index: 1;
+            overflow-y: auto;
         }
         
         body.stage-0 .pegboard {
@@ -183,8 +187,10 @@
         .pegboard-content {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 24px;
-            padding: 40px;
+            padding: 60px 80px;
             position: relative;
+            min-height: calc(100vh - 48px);
+            max-height: calc(1080px - 48px);
         }
         
         body.stage-0 .pegboard-content {
@@ -380,9 +386,10 @@
         /* 拼豆关卡卡片 */
         .levels {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 25px;
-            margin-bottom: 35px;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+            justify-content: center;
         }
         
         .bead-card {
@@ -434,14 +441,13 @@
         }
         
         .bead-card.locked {
-            opacity: 0.4;
-            filter: grayscale(100%);
-            pointer-events: none;
+            display: none; /* 完全隐藏未解锁关卡 */
         }
         
         .bead-card.unlocked {
             opacity: 1;
             filter: grayscale(0%);
+            display: block;
         }
         
         .bead-card:hover:not(.locked) {
