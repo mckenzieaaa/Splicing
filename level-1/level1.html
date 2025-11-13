@@ -537,15 +537,19 @@
             }
           });
 
-          // scenery proximity triggers
+          // scenery proximity triggers - allow repeat triggers when player re-enters area
           if(typeof scenery !== 'undefined'){
             scenery.forEach(s=>{
-              if(!sceneryTriggered.has(s.x)){
-                if(Math.abs(player.x - s.x) < 96){
-                  sceneryTriggered.add(s.x);
-                  showNarrative(s.text || '', 2600);
-                }
+              const isNear = Math.abs(player.x - s.x) < 96;
+              const wasNear = sceneryNearState.get(s.x) || false;
+              
+              // Trigger when player enters the area (wasn't near before, is near now)
+              if(isNear && !wasNear){
+                showNarrative(s.text || '', 2600);
               }
+              
+              // Update state
+              sceneryNearState.set(s.x, isNear);
             });
           }
 
@@ -1338,7 +1342,8 @@
           {x: 8200, type: 'cow_tree', scale: 0.45, yOffset: 60, text: 'The cow and tree wait together unchanged'},
           {x: 9400, type: 'item6', scale: 0.25, yOffset: 50, text: 'Small things left behind by travelers'}
         ];
-        const sceneryTriggered = new Set();
+        // Track whether player is currently near each scenery (for repeat triggers)
+        const sceneryNearState = new Map();
         // inline SVG sprites (grayscale) for richer scenery without external assets
         const SPRITE_IMAGES = {};
         (function(){
