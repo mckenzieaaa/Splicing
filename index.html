@@ -150,18 +150,55 @@
             transform: translateY(2px);
             box-shadow: 0 2px 0 #2980b9;
         }
+        
+        .key-hint {
+            margin-top: 20px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            font-size: 9px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
     </style>
 </head>
 <body style="background: #ffffff; color: #2c3e50;">
     <div id="app"></div>
     
     <script>
-        const KEYS = { 1: '1030', 2: '0218', 3: '1218' };
+        // 密钥映射：完成某关后获得的密钥 -> 解锁的下一关
+        // 1030: Level 1 通关密钥 -> 解锁 Level 2
+        // 0218: Level 2 通关密钥 -> 解锁 Level 3
+        // 1218: Level 3 通关密钥 -> 全部完成
+        const KEYS = {
+            '1030': 2,  // 输入1030解锁Level 2
+            '0218': 3,  // 输入0218解锁Level 3
+            '1218': 4   // 输入1218表示全部完成
+        };
         
         const LEVELS = {
-            1: { num: '01', title: '黑白世界', desc: '平台跳跃冒险<br>密钥: 1030', url: 'level-1/level1.html' },
-            2: { num: '02', title: '冷色觉醒', desc: '魔法猫咪冒险<br>密钥: 0218', url: 'level-2/level2.html' },
-            3: { num: '03', title: '暖色绽放', desc: '手势追踪收集<br>密钥: 1218', url: 'level-3/index.html' }
+            1: { 
+                num: '01', 
+                title: '黑白世界', 
+                desc: '平台跳跃冒险<br>收集3个物品通关',
+                url: 'level-1/level1.html',
+                keyHint: '通关后获得密钥: 1030'
+            },
+            2: { 
+                num: '02', 
+                title: '冷色觉醒', 
+                desc: '魔法猫咪冒险<br>收集30个金币通关',
+                url: 'level-2/level2.html',
+                keyHint: '通关后获得密钥: 0218'
+            },
+            3: { 
+                num: '03', 
+                title: '暖色绽放', 
+                desc: '手势追踪收集<br>完成挑战通关',
+                url: 'level-3/index.html',
+                keyHint: '通关后获得密钥: 1218'
+            }
         };
         
         function loadState() {
@@ -219,12 +256,16 @@
             state.unlocked.forEach(level => {
                 const l = LEVELS[level];
                 if (l) {  // 确保关卡数据存在
+                    // 只有当关卡有keyHint且是已解锁状态时才显示密钥提示
+                    const keyHintHTML = l.keyHint ? `<div class="key-hint">🔑 通关密钥: ${l.keyHint}</div>` : '';
+                    
                     cards += `
                         <div class="card">
                             <h2>${l.num}</h2>
                             <h3>${l.title}</h3>
                             <p>${l.desc}</p>
                             <a href="${l.url}">开始游戏 →</a>
+                            ${keyHintHTML}
                         </div>
                     `;
                 }
@@ -260,24 +301,32 @@
                 return;
             }
             
-            let unlocked = null;
-            for (let level in KEYS) {
-                if (KEYS[level] === key && !state.unlocked.includes(parseInt(level) + 1)) {
-                    unlocked = parseInt(level) + 1;
-                    break;
-                }
-            }
+            // 检查密钥是否有效
+            const unlockLevel = KEYS[key];
             
-            if (unlocked) {
-                state.unlocked.push(unlocked);
-                state.stage = unlocked - 1;
-                saveState(state);
-                msg.textContent = `🎉 Level ${unlocked} 已解锁！`;
-                msg.style.color = '#2ecc71';
-                setTimeout(() => {
-                    render();
-                    input.value = '';
-                }, 800);
+            if (unlockLevel && !state.unlocked.includes(unlockLevel)) {
+                if (unlockLevel === 4) {
+                    // 全部完成
+                    state.stage = 3;
+                    saveState(state);
+                    msg.textContent = '🎉 恭喜通关所有关卡！';
+                    msg.style.color = '#2ecc71';
+                } else {
+                    // 解锁新关卡
+                    state.unlocked.push(unlockLevel);
+                    state.stage = unlockLevel - 1;
+                    saveState(state);
+                    msg.textContent = `🎉 Level ${unlockLevel} 已解锁！`;
+                    msg.style.color = '#2ecc71';
+                    setTimeout(() => {
+                        render();
+                        input.value = '';
+                    }, 800);
+                }
+            } else if (unlockLevel && state.unlocked.includes(unlockLevel)) {
+                msg.textContent = '该密钥已使用';
+                msg.style.color = '#f39c12';
+                input.value = '';
             } else {
                 msg.textContent = '❌ 密钥错误';
                 msg.style.color = '#e74c3c';
