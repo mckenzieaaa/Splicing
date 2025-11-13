@@ -491,13 +491,14 @@
           // camera follows player with easing, clamp min at 0 (center the camera on player's collision center)
           const collisionW = player.w * PHYS_SCALE;
           const collisionH = player.h * PHYS_SCALE;
-          const playerCenterX = player.x + collisionW * 0.5;
+          const collisionOffsetX = 30; // Offset collision box 30px to the right
+          const playerCenterX = player.x + collisionOffsetX + collisionW * 0.5;
           const targetCam = Math.max(0, playerCenterX - VW*0.35);
           camX += (targetCam - camX) * Math.min(1, dt/200);
 
-          // platform collision (simple ground) — use scaled collision box
+          // platform collision (simple ground) — use scaled collision box with offset
           platforms.forEach(p=>{
-            if(player.x + collisionW > p.x && player.x < p.x + p.w){
+            if(player.x + collisionOffsetX + collisionW > p.x && player.x + collisionOffsetX < p.x + p.w){
               if(player.y + collisionH > p.y && player.y + collisionH < p.y + p.h + 64){
                 // snap to platform (align visual bottom correctly by using collisionH)
                 player.y = p.y - collisionH;
@@ -521,7 +522,7 @@
           // collectibles - check if player is near and show word puzzle
           collectibles.forEach((c, idx)=>{
             if(!c.collected){
-              const isNear = player.x + collisionW > c.x && player.x < c.x + c.w && 
+              const isNear = player.x + collisionOffsetX + collisionW > c.x && player.x + collisionOffsetX < c.x + c.w && 
                              player.y + collisionH > c.y && player.y < c.y + c.h;
               
               c.nearPlayer = isNear;
@@ -540,7 +541,7 @@
           // scenery proximity triggers - allow repeat triggers when player re-enters area
           if(typeof scenery !== 'undefined'){
             scenery.forEach(s=>{
-              const isNear = Math.abs(player.x - s.x) < 96;
+              const isNear = Math.abs((player.x + collisionOffsetX) - s.x) < 96;
               const wasNear = sceneryNearState.get(s.x) || false;
               
               // Trigger when player enters the area (wasn't near before, is near now)
