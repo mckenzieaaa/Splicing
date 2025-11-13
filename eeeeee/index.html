@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I am the Most Magical Cat!</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="1920" height="1080"></canvas>
+        <div id="gameOver" class="overlay hidden">
+            <h1>Game Over</h1>
+            <p>Score: <span id="finalScore">0</span></p>
+            <button id="restartBtn">Restart</button>
+        </div>
+        <div id="victory" class="overlay hidden">
+            <div class="password-container">
+                <p class="password">1218</p>
+            </div>
+        </div>
+        <div id="startScreen" class="overlay">
+            <h1>I am the Most Magical Cat!</h1>
+            <p>Press SPACE to start</p>
+            <p>SPACE to jump (hold to glide)</p>
+            <p>Collect 30 coins to win!</p>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
