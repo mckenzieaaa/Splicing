@@ -139,6 +139,16 @@
     white-space:nowrap;
     text-align:center;
   }
+  /* highlight answer keywords */
+  .narrative .card .highlight{
+    color:#ffffff;
+    font-weight:700;
+    text-shadow:0 0 10px #fff, 0 0 20px #fff, 0 0 30px #fff;
+    filter:blur(0px);
+    background:rgba(255,255,255,0.2);
+    padding:2px 6px;
+    border-radius:4px;
+  }
       .fadeScreen{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 600ms ease;z-index:30}
     </style>
   </head>
@@ -1494,16 +1504,43 @@
           
           if(!txt){ el.classList.remove('show'); narrativeSpans = []; setTimeout(()=>{ el.style.display = 'none'; }, 420); return; }
           
-          // Split into words (not characters) for independent floating
+          // Check if text contains answer keywords (stone=10, tree=30, time=whole password 1030)
+          const answerKeywords = ['stone', 'tree', 'time', 'Stone', 'Tree', 'Time'];
+          let hasAnswerKeyword = false;
+          answerKeywords.forEach(keyword => {
+            if(txt.toLowerCase().includes(keyword.toLowerCase())) hasAnswerKeyword = true;
+          });
+          
+          // If contains answer keyword, extend duration by 2x
+          if(hasAnswerKeyword && dur) {
+            dur = dur * 2;
+          }
+          
+          // Split into words and highlight answer keywords
           content.innerHTML = '';
           const wrap = document.createElement('div'); wrap.className = 'card';
           
-          // Split text into words - simpler now, just for spacing
+          // Split text into words
           const words = txt.split(/\s+/);
           words.forEach((word, idx) => {
             if(word.trim().length === 0) return;
             
-            wrap.appendChild(document.createTextNode(word));
+            // Check if this word contains answer keyword (case insensitive)
+            let isHighlight = false;
+            const lowerWord = word.toLowerCase();
+            answerKeywords.forEach(keyword => {
+              if(lowerWord.includes(keyword.toLowerCase())) isHighlight = true;
+            });
+            
+            if(isHighlight) {
+              // Create highlighted span for answer keyword
+              const span = document.createElement('span');
+              span.className = 'highlight';
+              span.textContent = word;
+              wrap.appendChild(span);
+            } else {
+              wrap.appendChild(document.createTextNode(word));
+            }
             
             // Add space between words (except last one)
             if(idx < words.length - 1) {
