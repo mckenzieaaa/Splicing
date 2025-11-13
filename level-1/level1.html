@@ -1418,18 +1418,38 @@
         // Background - single pre-composed image
         let compositeBackground = null;
 
+        // Image loading counter
+        let loadedImages = 0;
+        let totalImages = 3; // Walk, Idle, Run
+        
+        function imageLoaded(){
+          loadedImages++;
+          console.log(`Loaded ${loadedImages}/${totalImages} player sprites`);
+        }
+
         // Load player walk spritesheet
         loadImage('./assets/player/Walk.png', (img)=>{
           if(img){
             playerWalkSheet = img;
+            imageLoaded();
           }
         });
 
         // Load player idle spritesheet
-        loadImage('./assets/player/Idle.png', (img)=>{ if(img) playerIdleSheet = img; });
+        loadImage('./assets/player/Idle.png', (img)=>{ 
+          if(img){
+            playerIdleSheet = img; 
+            imageLoaded();
+          }
+        });
 
         // Load player run spritesheet
-        loadImage('./assets/player/Run.png', (img)=>{ if(img) playerRunSheet = img; });
+        loadImage('./assets/player/Run.png', (img)=>{ 
+          if(img){
+            playerRunSheet = img; 
+            imageLoaded();
+          }
+        });
 
         // Load collectible image (spinning coin spritesheet)
         let coinImage = null;
