@@ -1,1 +1,1 @@
-Magic cat!
+🐱Magic cat!
