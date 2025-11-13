@@ -3,8 +3,8 @@
 
 @font-face {
     font-family: 'PixelFont';
-    src: url('pixel-font.ttf') format('truetype'),
-         local('Courier New'), local('Consolas'), local('Monaco');
+    src: local('Courier New'), local('Consolas'), local('Monaco');
+    /* Replace with your custom pixel font file if available */
 }
 
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
