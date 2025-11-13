@@ -5,13 +5,275 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Splicing - 拼豆像素之旅</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Press Start 2P', monospace;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            transition: background 1s ease;
+        }
+        
+        /* 拼豆背景点阵 */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: radial-gradient(circle, rgba(0,0,0,0.1) 1.5px, transparent 1.5px);
+            background-size: 20px 20px;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        #app {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            max-width: 1600px;
+            padding: 60px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 56px;
+            margin-bottom: 20px;
+            letter-spacing: 6px;
+        }
+        
+        .subtitle {
+            font-size: 14px;
+            margin-bottom: 50px;
+            opacity: 0.8;
+        }
+        
+        .key-box {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 30px 50px;
+            border-radius: 15px;
+            margin-bottom: 50px;
+            display: inline-block;
+        }
+        
+        .key-box label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .key-input {
+            width: 200px;
+            padding: 12px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 16px;
+            text-align: center;
+            border: 3px solid #000;
+            border-radius: 8px;
+            margin-right: 10px;
+        }
+        
+        .submit-btn {
+            padding: 12px 30px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #2980b9;
+        }
+        
+        .submit-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #2980b9;
+        }
+        
+        .msg {
+            margin-top: 15px;
+            font-size: 10px;
+            min-height: 20px;
+        }
+        
+        .levels {
+            display: grid;
+            gap: 30px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.9);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        }
+        
+        .card h2 {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .card h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .card p {
+            font-size: 10px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .card a {
+            display: inline-block;
+            padding: 15px 35px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 11px;
+            box-shadow: 0 4px 0 #2980b9;
+        }
+        
+        .card a:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #2980b9;
+        }
+    </style>
 </head>
-<body>
+<body style="background: #ffffff; color: #2c3e50;">
     <div id="app"></div>
     
     <script>
-        // 测试：先显示一个简单的页面确认没问题
-        document.getElementById('app').innerHTML = '<h1 style="text-align:center;padding:100px;font-family:Arial;">Splicing - 测试页面加载成功</h1>';
+        const KEYS = { 1: '1030', 2: '0218', 3: '1218' };
+        
+        const LEVELS = {
+            1: { num: '01', title: '黑白世界', desc: '平台跳跃冒险<br>密钥: 1030', url: 'level-1/level1.html' },
+            2: { num: '02', title: '冷色觉醒', desc: '魔法猫咪冒险<br>密钥: 0218', url: 'level-2/level2.html' },
+            3: { num: '03', title: '暖色绽放', desc: '手势追踪收集<br>密钥: 1218', url: 'level-3/index.html' }
+        };
+        
+        function loadState() {
+            const saved = localStorage.getItem('splicing_state_v1');
+            return saved ? JSON.parse(saved) : { stage: 0, unlocked: [1] };
+        }
+        
+        function saveState(state) {
+            localStorage.setItem('splicing_state_v1', JSON.stringify(state));
+        }
+        
+        let state = loadState();
+        
+        function render() {
+            const app = document.getElementById('app');
+            const body = document.body;
+            
+            // 更新背景
+            const backgrounds = [
+                '#ffffff',
+                'linear-gradient(135deg, #2c2c2c 0%, #4a4a4a 100%)',
+                'linear-gradient(135deg, #2c3e50 0%, #2980b9 50%, #27ae60 100%)',
+                'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)'
+            ];
+            body.style.background = backgrounds[state.stage];
+            body.style.color = state.stage === 0 ? '#2c3e50' : '#ecf0f1';
+            
+            // 关卡布局
+            const gridCols = state.unlocked.length === 1 ? '1fr' : 
+                            state.unlocked.length === 2 ? 'repeat(2, 1fr)' : 
+                            'repeat(3, 1fr)';
+            
+            let cards = '';
+            state.unlocked.forEach(level => {
+                const l = LEVELS[level];
+                cards += `
+                    <div class="card">
+                        <h2>${l.num}</h2>
+                        <h3>${l.title}</h3>
+                        <p>${l.desc}</p>
+                        <a href="${l.url}">开始游戏 →</a>
+                    </div>
+                `;
+            });
+            
+            app.innerHTML = `
+                <div class="container">
+                    <h1>SPLICING</h1>
+                    <p class="subtitle">拼豆像素之旅 - 从黑白到彩色</p>
+                    
+                    <div class="key-box">
+                        <label>🔑 输入通关密钥解锁</label>
+                        <input type="text" id="keyInput" class="key-input" placeholder="4位密钥" maxlength="4">
+                        <button class="submit-btn" onclick="submit()">提交</button>
+                        <div class="msg" id="msg"></div>
+                    </div>
+                    
+                    <div class="levels" style="grid-template-columns: ${gridCols}">
+                        ${cards}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function submit() {
+            const input = document.getElementById('keyInput');
+            const msg = document.getElementById('msg');
+            const key = input.value.trim();
+            
+            if (!key) {
+                msg.textContent = '请输入密钥';
+                msg.style.color = '#e74c3c';
+                return;
+            }
+            
+            let unlocked = null;
+            for (let level in KEYS) {
+                if (KEYS[level] === key && !state.unlocked.includes(parseInt(level) + 1)) {
+                    unlocked = parseInt(level) + 1;
+                    break;
+                }
+            }
+            
+            if (unlocked) {
+                state.unlocked.push(unlocked);
+                state.stage = unlocked - 1;
+                saveState(state);
+                msg.textContent = `🎉 Level ${unlocked} 已解锁！`;
+                msg.style.color = '#2ecc71';
+                setTimeout(() => {
+                    render();
+                    input.value = '';
+                }, 800);
+            } else {
+                msg.textContent = '❌ 密钥错误';
+                msg.style.color = '#e74c3c';
+                input.value = '';
+            }
+        }
+        
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') submit();
+        });
+        
+        render();
+        
+        // 调试
+        window.resetGame = function() {
+            state = { stage: 0, unlocked: [1] };
+            saveState(state);
+            render();
+        };
     </script>
 </body>
 </html>
