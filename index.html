@@ -165,8 +165,19 @@
         };
         
         function loadState() {
-            const saved = localStorage.getItem('splicing_state_v1');
-            return saved ? JSON.parse(saved) : { stage: 0, unlocked: [1] };
+            try {
+                const saved = localStorage.getItem('splicing_state_v1');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    // 确保数据格式正确
+                    if (parsed.stage !== undefined && Array.isArray(parsed.unlocked)) {
+                        return parsed;
+                    }
+                }
+            } catch(e) {
+                console.log('读取状态失败，使用默认值');
+            }
+            return { stage: 0, unlocked: [1] };
         }
         
         function saveState(state) {
@@ -179,6 +190,12 @@
             const app = document.getElementById('app');
             const body = document.body;
             
+            // 确保 state 有效
+            if (!state || !Array.isArray(state.unlocked) || state.unlocked.length === 0) {
+                state = { stage: 0, unlocked: [1] };
+                saveState(state);
+            }
+            
             // 更新背景
             const backgrounds = [
                 '#ffffff',
@@ -186,7 +203,7 @@
                 'linear-gradient(135deg, #2c3e50 0%, #2980b9 50%, #27ae60 100%)',
                 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)'
             ];
-            body.style.background = backgrounds[state.stage];
+            body.style.background = backgrounds[state.stage] || backgrounds[0];
             body.style.color = state.stage === 0 ? '#2c3e50' : '#ecf0f1';
             
             // 关卡布局
